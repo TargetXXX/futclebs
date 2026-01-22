@@ -38,12 +38,38 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
   const loadPlayers = async () => {
     setLoading(true);
     try {
+      // 1. Descobrir o time do usuário logado
+      const { data: matchResult } = await supabase
+        .from('match_results')
+        .select('players_team_a, players_team_b')
+        .eq('match_id', matchId)
+        .maybeSingle();
+
+      if (!matchResult) {
+        setPlayersToVote([]);
+        return;
+      }
+
+      const teamA = matchResult.players_team_a || [];
+      const teamB = matchResult.players_team_b || [];
+      
+      const userTeamIds = teamA.includes(currentUserId) ? teamA : teamB.includes(currentUserId) ? teamB : [];
+
+      if (userTeamIds.length === 0) {
+        // Usuário não participou desta partida ou times não definidos
+        setPlayersToVote([]);
+        return;
+      }
+
+      // 2. Buscar participantes que são do mesmo time (excluindo o próprio usuário)
       const { data: participants } = await supabase
         .from('match_players')
         .select('player_id, players(name, is_goalkeeper)')
         .eq('match_id', matchId)
+        .in('player_id', userTeamIds)
         .neq('player_id', currentUserId);
 
+      // 3. Verificar quem já foi votado
       const { data: alreadyVoted } = await supabase
         .from('player_votes')
         .select('target_player_id')
@@ -62,6 +88,8 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
           }));
         setPlayersToVote(remaining);
       }
+    } catch (err) {
+      console.error("Erro ao carregar jogadores para votação:", err);
     } finally {
       setLoading(false);
     }
@@ -74,7 +102,6 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
     const target = playersToVote[currentIndex];
     
     try {
-      // SALVAMOS 1-5 NO BANCO
       const ratingsToSubmit = {
         velocidade: currentRatings.velocidade,
         finalizacao: currentRatings.finalizacao,
@@ -103,13 +130,16 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
           defesa: 3,
           fisico: 3
         });
+        // Scroll to top of the content area
+        const contentArea = document.getElementById('vote-content-area');
+        if (contentArea) contentArea.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         onRefresh();
         onClose();
       }
     } catch (e: any) {
       console.error(e);
-      alert("Erro ao salvar: " + (e.message || "Tente novamente"));
+      alert("Erro ao salvar voto: " + (e.message || "Tente novamente"));
     } finally {
       setSubmitting(false);
     }
@@ -119,65 +149,87 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
 
   const currentPlayer = playersToVote[currentIndex];
 
-  // Definição dos atributos para mapeamento
   const allAttributes = [
-    { key: 'velocidade', label: 'Velocidade' },
-    { key: 'finalizacao', label: 'Finalização' },
-    { key: 'passe', label: 'Passe' },
-    { key: 'drible', label: 'Drible' },
-    { key: 'defesa', label: 'Defesa' },
-    { key: 'fisico', label: 'Físico' },
+    { key: 'velocidade', label: 'Velocidade', icon: '⚡' },
+    { key: 'finalizacao', label: 'Finalização', icon: '🎯' },
+    { key: 'passe', label: 'Passe', icon: '⚽' },
+    { key: 'drible', label: 'Drible', icon: '👟' },
+    { key: 'defesa', label: 'Defesa', icon: '🛡️' },
+    { key: 'fisico', label: 'Físico', icon: '💪' },
   ] as const;
 
-  // Filtra os atributos baseando-se se o jogador é goleiro ou não
   const visibleAttributes = currentPlayer?.is_goalkeeper
     ? allAttributes.filter(attr => attr.key === 'passe' || attr.key === 'defesa')
     : allAttributes;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4 bg-black/98 backdrop-blur-2xl animate-in fade-in duration-300">
-      <div className="w-full h-full md:h-auto md:max-w-md bg-slate-900 md:border md:border-slate-800 md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-6 bg-black/98 backdrop-blur-2xl animate-in fade-in duration-300">
+      <div className="w-full h-full md:h-auto md:max-w-2xl bg-slate-950 md:bg-slate-900 md:border md:border-slate-800 md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl md:max-h-[90vh]">
         
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-black text-white uppercase tracking-tight">Avaliação de Craques</h2>
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Sua opinião define o Overall do grupo</p>
+        {/* Header com Progresso */}
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+          <div className="flex-1">
+            <h2 className="text-xl font-black text-white uppercase tracking-tight">Avaliação do seu Time</h2>
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${((currentIndex + 1) / (playersToVote.length || 1)) * 100}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase whitespace-nowrap">
+                {playersToVote.length > 0 ? `${currentIndex + 1} de ${playersToVote.length}` : '0 de 0'}
+              </span>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 text-slate-500 hover:text-white">
+          <button onClick={onClose} className="p-3 ml-4 text-slate-500 hover:text-white hover:bg-slate-800 rounded-2xl transition-all">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar pb-32">
+        <div id="vote-content-area" className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar pb-32">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
-              <p className="text-slate-500 font-black uppercase text-[10px]">Preparando cédulas...</p>
+              <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+              <p className="text-slate-500 font-black uppercase text-[10px] tracking-widest">Localizando seus companheiros...</p>
             </div>
           ) : playersToVote.length === 0 ? (
-            <div className="text-center py-20 space-y-4">
-              <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-500">
-                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+            <div className="text-center py-20 space-y-6 max-w-sm mx-auto animate-in zoom-in duration-500">
+              <div className="w-24 h-24 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center mx-auto text-emerald-500 border border-emerald-500/20 shadow-xl shadow-emerald-500/5">
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
               </div>
-              <p className="text-white font-black uppercase text-sm">Votação Concluída!</p>
-              <p className="text-slate-500 text-xs">Você já avaliou todos os participantes.</p>
-              <button onClick={onClose} className="mt-4 px-8 py-3 bg-slate-800 text-white rounded-xl text-xs font-black uppercase">Fechar</button>
+              <div>
+                <p className="text-white font-black uppercase text-lg tracking-tight">Tudo em ordem!</p>
+                <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">Você já avaliou todos os jogadores do seu time ou ainda não jogou nesta partida.</p>
+              </div>
+              <button onClick={onClose} className="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all">Fechar Súmula</button>
             </div>
           ) : (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4">
-              <div className="text-center">
-                <p className="text-slate-500 text-[10px] font-black uppercase mb-2">Jogador {currentIndex + 1} de {playersToVote.length}</p>
-                <h3 className="text-2xl font-black text-white">{currentPlayer.name}</h3>
-                <span className={`inline-block mt-2 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${currentPlayer.is_goalkeeper ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' : 'bg-blue-500/10 border-blue-500/20 text-blue-500'}`}>
-                  {currentPlayer.is_goalkeeper ? 'Goleiro' : 'Jogador de Linha'}
-                </span>
+            <div className="space-y-10 animate-in slide-in-from-bottom-6 duration-500">
+              {/* Header do Jogador Atual */}
+              <div className="text-center space-y-3">
+                <div className="inline-flex flex-col items-center">
+                   <div className="w-20 h-20 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[1.5rem] flex items-center justify-center text-3xl font-black text-white border border-slate-700/50 shadow-2xl mb-4 group-hover:scale-105 transition-transform">
+                    {currentPlayer.name.charAt(0).toUpperCase()}
+                   </div>
+                   <h3 className="text-3xl font-black text-white tracking-tight">{currentPlayer.name}</h3>
+                   <span className={`mt-2 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                    currentPlayer.is_goalkeeper 
+                      ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' 
+                      : 'bg-blue-500/10 border-blue-500/20 text-blue-500'
+                  }`}>
+                    {currentPlayer.is_goalkeeper ? '🛡️ Goleiro do Time' : '🏃 Jogador de Linha'}
+                  </span>
+                </div>
               </div>
 
-              <div className="space-y-6">
+              {/* Grid de Atributos - Responsivo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
                 {visibleAttributes.map(attr => (
                   <RatingRow 
                     key={attr.key}
-                    label={attr.label} 
+                    label={attr.label}
+                    icon={attr.icon}
                     value={currentRatings[attr.key as keyof typeof currentRatings]} 
                     onChange={v => setCurrentRatings(r => ({...r, [attr.key]: v}))} 
                   />
@@ -187,17 +239,20 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
           )}
         </div>
 
+        {/* Footer Fixo */}
         {!loading && playersToVote.length > 0 && (
-          <div className="p-6 bg-slate-900 border-t border-slate-800">
+          <div className="p-6 md:p-8 bg-slate-900/90 backdrop-blur-md border-t border-slate-800">
             <button 
               onClick={handleNextVote}
               disabled={submitting}
-              className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black text-xs uppercase rounded-2xl transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2"
+              className="w-full max-w-md mx-auto py-5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-black text-sm uppercase tracking-widest rounded-[1.25rem] transition-all shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3 active:scale-[0.98]"
             >
-              {submitting ? <div className="w-5 h-5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" /> : (
+              {submitting ? (
+                <div className="w-6 h-6 border-3 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
+              ) : (
                 <>
-                  {currentIndex === playersToVote.length - 1 ? 'Finalizar Todas Avaliações' : 'Próximo Jogador'}
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                  <span>{currentIndex === playersToVote.length - 1 ? 'Concluir Avaliações' : 'Avaliar Próximo Jogador'}</span>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                 </>
               )}
             </button>
@@ -208,28 +263,33 @@ export const PlayerVoteModal: React.FC<PlayerVoteModalProps> = ({ isOpen, onClos
   );
 };
 
-// Fix: Use React.FC for RatingRow to resolve 'key' prop TypeScript error
-const RatingRow: React.FC<{ label: string, value: number, onChange: (v: number) => void }> = ({ label, value, onChange }) => (
-  <div className="flex flex-col gap-2">
+const RatingRow: React.FC<{ label: string, icon: string, value: number, onChange: (v: number) => void }> = ({ label, icon, value, onChange }) => (
+  <div className="flex flex-col gap-3 group">
     <div className="flex justify-between items-center px-1">
-      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span>
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-black text-emerald-500/60 tabular-nums">{value * 20} pts</span>
-        <span className="text-xs font-black text-emerald-500">{value === 5 ? 'Elite' : value === 4 ? 'Bom' : value === 3 ? 'Médio' : value === 2 ? 'Baixo' : 'Ruim'}</span>
+        <span className="text-lg">{icon}</span>
+        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest group-focus-within:text-emerald-500 transition-colors">{label}</span>
+      </div>
+      <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-lg border border-slate-700/30">
+        <span className="text-[11px] font-black text-emerald-500 tabular-nums">{value * 20} pts</span>
       </div>
     </div>
-    <div className="flex justify-between gap-1">
+    <div className="flex justify-between gap-1.5 sm:gap-2">
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           onClick={() => onChange(star)}
-          className={`flex-1 h-12 rounded-xl border transition-all flex items-center justify-center ${
+          className={`flex-1 h-14 rounded-2xl border transition-all flex items-center justify-center relative active:scale-90 ${
             star <= value 
-              ? 'bg-orange-500/10 border-orange-500/40 text-orange-500 shadow-inner' 
-              : 'bg-slate-800/50 border-slate-700/50 text-slate-600'
+              ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 shadow-lg shadow-emerald-500/5' 
+              : 'bg-slate-800/30 border-slate-700/30 text-slate-700 hover:border-slate-600'
           }`}
         >
-          <svg className={`w-5 h-5 ${star <= value ? 'fill-current' : 'fill-none'}`} stroke="currentColor" viewBox="0 0 24 24">
+          <svg 
+            className={`w-6 h-6 transition-all duration-300 ${star <= value ? 'fill-emerald-500 scale-110' : 'fill-none'}`} 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.382-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
           </svg>
         </button>
