@@ -72,10 +72,34 @@ const App: React.FC = () => {
 
         let hasPendingVotes = false;
         if (m.status === 'finished' && userReg) {
-          const { data: others } = await supabase.from('match_players').select('player_id').eq('match_id', m.id).neq('player_id', userId);
-          const { data: votes } = await supabase.from('player_votes').select('target_player_id').eq('match_id', m.id).eq('voter_id', userId);
-          const votedIds = new Set(votes?.map(v => v.target_player_id) || []);
-          hasPendingVotes = (others?.some(o => !votedIds.has(o.player_id))) || false;
+          // Buscar os times da partida para saber quem são os companheiros
+          const { data: matchRes } = await supabase
+            .from('match_results')
+            .select('players_team_a, players_team_b')
+            .eq('match_id', m.id)
+            .maybeSingle();
+
+          if (matchRes) {
+            const teamA = matchRes.players_team_a || [];
+            const teamB = matchRes.players_team_b || [];
+
+            const userTeamIds = teamA.includes(userId) ? teamA : teamB.includes(userId) ? teamB : [];
+            
+            const teammatesIds = userTeamIds.filter(id => id !== userId);
+
+            if (teammatesIds.length > 0) {
+              const { data: votes } = await supabase
+                .from('player_votes')
+                .select('target_player_id')
+                .eq('match_id', m.id)
+                .eq('voter_id', userId)
+                .in('target_player_id', teammatesIds);
+
+              const votedIds = new Set(votes?.map(v => v.target_player_id) || []);
+              
+              hasPendingVotes = teammatesIds.some(tid => !votedIds.has(tid));
+            }
+          }
         }
 
         return { ...m, playerCount: count || 0, isUserRegistered: !!userReg, hasPendingVotes } as MatchWithExtras;
