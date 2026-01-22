@@ -1,0 +1,5 @@
+{
+  "name": "FutClebs",
+  "description": "Uma plataforma moderna para gerenciar jogadores, estatísticas e partidas de futebol com integração total ao Supabase.",
+  "requestFramePermissions": []
+}
