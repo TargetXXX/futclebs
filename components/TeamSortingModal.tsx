@@ -6,19 +6,21 @@ interface TeamSortingModalProps {
   isOpen: boolean;
   onClose: () => void;
   matchId: string;
+  isAdmin: boolean;
 }
 
 interface PlayerWithStats extends Player {
   stats?: PlayerStats;
 }
 
-export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onClose, matchId }) => {
+export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onClose, matchId, isAdmin }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(true);
   const [teams, setTeams] = useState<{ teamA: PlayerWithStats[], teamB: PlayerWithStats[] } | null>(null);
+  const [noTeamsDefined, setNoTeamsDefined] = useState(false);
 
   useEffect(() => {
     if (isOpen && matchId) checkExistingAndLoad();
@@ -26,6 +28,7 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
 
   const checkExistingAndLoad = async () => {
     setLoading(true);
+    setNoTeamsDefined(false);
     try {
       const { data: existingResult } = await supabase
         .from('match_results')
@@ -53,7 +56,12 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
           setIsLocked(true);
         }
       } else {
-        await fetchAndSort();
+        if (isAdmin) {
+          await fetchAndSort();
+          setIsLocked(false);
+        } else {
+          setNoTeamsDefined(true);
+        }
       }
     } catch (e) {
       console.error("Erro ao carregar times:", e);
@@ -74,7 +82,6 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
       }));
 
       sortTeams(players);
-      setIsLocked(false);
     } finally { setLoading(false); }
   };
 
@@ -100,7 +107,7 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
   };
 
   const handleMovePlayer = (playerId: string, from: 'teamA' | 'teamB') => {
-    if (!teams || isLocked) return;
+    if (!teams || isLocked || !isAdmin) return;
 
     const to = from === 'teamA' ? 'teamB' : 'teamA';
     const playerToMove = teams[from].find(p => p.id === playerId);
@@ -115,7 +122,7 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
   };
 
   const handleSave = async () => {
-    if (!teams || saving || isLocked) return;
+    if (!teams || saving || isLocked || !isAdmin) return;
     setSaving(true);
     try {
       await supabase.from('match_results').upsert({
@@ -157,16 +164,16 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl animate-in zoom-in duration-300">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-0 md:p-4 bg-black/95 backdrop-blur-xl animate-in zoom-in duration-300">
       <div className="w-full h-full md:h-auto md:max-w-6xl bg-slate-950 md:bg-slate-900 md:border md:border-slate-800 md:rounded-[2.5rem] overflow-hidden flex flex-col max-h-screen md:max-h-[90vh] shadow-2xl">
         
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
           <div className="flex items-center gap-4">
             <div>
               <h2 className="text-xl font-black text-white uppercase tracking-tight">Escalação da Partida</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Defina os times manualmente ou sorteie</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Confira a divisão das equipes</p>
             </div>
-            {isLocked && (
+            {isLocked && teams && (
               <span className="px-2 py-1 bg-slate-800 text-slate-400 rounded-lg text-[8px] font-black uppercase border border-slate-700">Modo Leitura</span>
             )}
           </div>
@@ -185,7 +192,7 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
                 <span className="text-[10px] font-black uppercase hidden sm:inline">{copySuccess ? 'Copiado!' : 'Copiar Escalação'}</span>
               </button>
             )}
-            {isLocked && (
+            {isLocked && isAdmin && teams && (
               <button 
                 onClick={() => setIsLocked(false)}
                 className="p-3 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-xl hover:bg-orange-500 hover:text-slate-950 transition-all"
@@ -206,9 +213,19 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
               <div className="w-10 h-10 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
               <p className="text-slate-500 font-black uppercase text-[10px] tracking-widest">Processando equipes...</p>
             </div>
+          ) : noTeamsDefined ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center space-y-6">
+              <div className="w-20 h-20 bg-slate-800/50 rounded-[1.5rem] flex items-center justify-center text-slate-600 border border-slate-800">
+                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              </div>
+              <div>
+                <h3 className="text-white font-black uppercase text-lg">Aguardando Escalação</h3>
+                <p className="text-slate-500 text-xs mt-2 max-w-xs mx-auto font-medium">O administrador ainda não definiu os times para esta partida. Volte em breve!</p>
+              </div>
+            </div>
           ) : teams && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 relative">
-              {isLocked && (
+              {(isLocked || !isAdmin) && (
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] z-0">
                    <svg className="w-96 h-96 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
                 </div>
@@ -218,40 +235,42 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
                 players={teams.teamA} 
                 color="emerald" 
                 onMovePlayer={(pid) => handleMovePlayer(pid, 'teamA')} 
-                isLocked={isLocked}
+                isLocked={isLocked || !isAdmin}
               />
               <TeamColumn 
                 title="Time B" 
                 players={teams.teamB} 
                 color="blue" 
                 onMovePlayer={(pid) => handleMovePlayer(pid, 'teamB')} 
-                isLocked={isLocked}
+                isLocked={isLocked || !isAdmin}
               />
             </div>
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex flex-col sm:flex-row items-center justify-center gap-4">
-          {!isLocked ? (
-            <>
-              <button onClick={fetchAndSort} disabled={saving || saveSuccess} className="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                Resetar/Sortear
-              </button>
-              <button onClick={handleSave} disabled={saving || saveSuccess} className={`w-full sm:w-64 py-4 font-black text-xs uppercase rounded-2xl transition-all flex items-center justify-center gap-2 ${saveSuccess ? 'bg-emerald-500 text-slate-950' : 'bg-emerald-600 hover:bg-emerald-500 text-slate-950 shadow-xl shadow-emerald-600/20 active:scale-95'}`}>
-                {saving ? <div className="w-5 h-5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" /> : saveSuccess ? "Time Confirmado!" : "Confirmar Escalação"}
-              </button>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-2">
-              <div className="px-10 py-4 bg-slate-800/50 border border-slate-700 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center gap-3">
-                <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
-                Escalação Fixada para a Partida
+        {isAdmin && teams && !noTeamsDefined && (
+          <div className="absolute bottom-0 left-0 right-0 p-6 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex flex-col sm:flex-row items-center justify-center gap-4">
+            {!isLocked ? (
+              <>
+                <button onClick={fetchAndSort} disabled={saving || saveSuccess} className="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  Resetar/Sortear
+                </button>
+                <button onClick={handleSave} disabled={saving || saveSuccess} className={`w-full sm:w-64 py-4 font-black text-xs uppercase rounded-2xl transition-all flex items-center justify-center gap-2 ${saveSuccess ? 'bg-emerald-500 text-slate-950' : 'bg-emerald-600 hover:bg-emerald-500 text-slate-950 shadow-xl shadow-emerald-600/20 active:scale-95'}`}>
+                  {saving ? <div className="w-5 h-5 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" /> : saveSuccess ? "Time Confirmado!" : "Confirmar Escalação"}
+                </button>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-2">
+                <div className="px-10 py-4 bg-slate-800/50 border border-slate-700 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl flex items-center gap-3">
+                  <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/></svg>
+                  Escalação Fixada para a Partida
+                </div>
+                <p className="text-[9px] text-slate-600 font-bold uppercase">Clique no cadeado acima para editar manualmente</p>
               </div>
-              <p className="text-[9px] text-slate-600 font-bold uppercase">Clique no cadeado acima para editar manualmente</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
