@@ -315,29 +315,89 @@ const TeamColumn = ({
           </div>
         ) : (
           players.map(p => (
-            <div key={p.id} className="group flex items-center gap-3 p-3 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/60 transition-all">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 ${p.is_goalkeeper ? 'bg-orange-500/20 text-orange-500 border border-orange-500/20 shadow-lg shadow-orange-500/10' : 'bg-slate-700 text-slate-400'}`}>
-                {p.is_goalkeeper ? 'GK' : 'PL'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-white truncate">{p.name}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="px-2 py-1 bg-slate-900/60 rounded-lg border border-slate-800 text-emerald-500 font-black text-[10px] tabular-nums">
-                  {Math.round((p.stats?.overall || 0) * 20)}
+              <div
+                key={p.id}
+                className="group flex items-center gap-3 p-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl
+                          hover:bg-slate-800/70 hover:border-emerald-500/20 transition-all duration-300"
+              >
+                <div className="relative shrink-0">
+                  <div className="absolute -inset-2 rounded-full bg-emerald-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  {p.avatar ? (
+                    <img
+                      src={p.avatar}
+                      alt="Avatar"
+                      className="relative w-10 h-10 rounded-full object-cover border-2 border-white/15
+                                shadow-lg shadow-black/30
+                                group-hover:scale-[1.06] group-hover:border-white/40 transition-all duration-300"
+                    />
+                  ) : (
+                    <div
+                      className="relative w-10 h-10 rounded-full bg-slate-900/60 border-2 border-white/10
+                                flex items-center justify-center
+                                shadow-lg shadow-black/30
+                                group-hover:scale-[1.06] group-hover:border-white/25 transition-all duration-300"
+                    >
+                      <span className="text-white font-black text-sm">
+                        {p.name?.charAt(0)?.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                {!isLocked && (
-                  <button 
-                    onClick={() => onMovePlayer(p.id)}
-                    className={`p-2 rounded-lg transition-all ${color === 'emerald' ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-950'}`}
-                    title={color === 'emerald' ? "Mover para Time B" : "Mover para Time A"}
+
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0
+                              transition-all duration-300 group-hover:scale-105 ${
+                    p.is_goalkeeper
+                      ? 'bg-orange-500/20 text-orange-500 border border-orange-500/25 shadow-lg shadow-orange-500/10'
+                      : 'bg-slate-700/60 text-slate-300 border border-white/10'
+                  }`}
+                >
+                  {p.is_goalkeeper ? 'GK' : 'PL'}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate group-hover:text-white transition-colors">
+                    {p.name}
+                  </p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                    {p.is_goalkeeper ? 'Goleiro' : 'Linha'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div
+                    className="px-2 py-1 bg-slate-950/60 rounded-xl border border-slate-800
+                              text-emerald-400 font-black text-[10px] tabular-nums
+                              group-hover:bg-emerald-500/10 group-hover:border-emerald-500/25 transition-all"
                   >
-                    <svg className={`w-4 h-4 transition-transform ${color === 'emerald' ? 'rotate-0' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                  </button>
-                )}
+                    {Math.round((p.stats?.overall || 0) * 20)}
+                  </div>
+
+                  {!isLocked && (
+                    <button
+                      onClick={() => onMovePlayer(p.id)}
+                      className={`p-2 rounded-xl transition-all active:scale-95 ${
+                        color === 'emerald'
+                          ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white'
+                          : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-950'
+                      }`}
+                      title={color === 'emerald' ? "Mover para Time B" : "Mover para Time A"}
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform ${color === 'emerald' ? 'rotate-0' : 'rotate-180'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            ))
+
         )}
       </div>
     </div>
