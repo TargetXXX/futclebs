@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase, Player } from '../services/supabase';
 
@@ -8,7 +7,10 @@ interface AdminUserManagementModalProps {
   onClose: () => void;
 }
 
-const SUPER_USER_ID = '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990';
+const SUPER_USER_IDS = [
+  '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990',
+  '64043e4d-79e3-4875-974d-4eafa3a23823'
+];
 
 export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> = ({ isOpen, currentUserId, onClose }) => {
   const [loading, setLoading] = useState(true);
@@ -19,7 +21,7 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const isSuperUser = currentUserId === SUPER_USER_ID;
+  const isSuperUser = SUPER_USER_IDS.includes(currentUserId);
 
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
 
   return (
     <>
-      isSuperUser && (
+      {isSuperUser && (
       <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
         <div className="w-full h-full sm:h-auto sm:max-w-2xl bg-slate-950 sm:bg-slate-900 border-none sm:border sm:border-slate-800 sm:rounded-[2.5rem] overflow-hidden flex flex-col max-h-screen sm:max-h-[85vh] shadow-2xl">
 
@@ -134,8 +136,7 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
               filteredPlayers.map(p => (
                 <div
                   key={p.id}
-                  className={`bg-slate-800/30 border rounded-2xl transition-all overflow-hidden ${resettingUserId === p.id ? 'border-emerald-500' : 'border-slate-700/50 hover:border-slate-600'
-                    }`}
+                  className={`bg-slate-800/30 border rounded-2xl transition-all overflow-hidden ${resettingUserId === p.id ? 'border-emerald-500' : 'border-slate-700/50 hover:border-slate-600'}`}
                 >
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
@@ -207,10 +208,9 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
           </div>
         </div>
       </div>
-      )
+      )}
 
-      !isSuperUser && (
-      <>
+      {!isSuperUser && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl p-6">
             <h2 className="text-xl font-black text-white uppercase tracking-tight mb-4">Acesso Negado</h2>
@@ -223,8 +223,7 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
             </button>
           </div>
         </div>
-      </>
-      )
+      )}
     </>
   );
 };
