@@ -8,6 +8,7 @@ interface RegisteredPlayer {
   name: string;
   is_goalkeeper: boolean;
   stats: PlayerStats | null;
+  avatar: string | null;
 }
 
 interface MatchPlayersModalProps {
@@ -66,7 +67,8 @@ export const MatchPlayersModal: React.FC<MatchPlayersModalProps> = ({
           players ( 
             name,
             is_goalkeeper,
-            player_stats ( * )
+            player_stats ( * ),
+            avatar
           )
         `)
         .eq('match_id', matchId);
@@ -81,7 +83,8 @@ export const MatchPlayersModal: React.FC<MatchPlayersModalProps> = ({
           player_id: item.player_id,
           name: item.players?.name || 'Jogador sem nome',
           is_goalkeeper: !!item.players?.is_goalkeeper,
-          stats: stats || null
+          stats: stats || null,
+          avatar: item.players?.avatar || null
         };
       });
 
