@@ -651,7 +651,6 @@ const handleAvatarSaveBase64 = async () => {
 
                       {/* Menu Admin - Exibido abaixo ou ao lado em telas maiores */}
                       {userProfile.is_admin && (
-                      {userProfile.is_admin && match.status === 'open' && (
                         <div className="w-full">
                           {match.status === 'open' && (
                             <>
