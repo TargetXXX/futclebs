@@ -95,20 +95,124 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
 
   const sortTeams = (pool: PlayerWithStats[]) => {
     const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
     const gks = shuffled.filter(p => p.is_goalkeeper);
     const field = shuffled.filter(p => !p.is_goalkeeper);
 
     const teamA: PlayerWithStats[] = [];
     const teamB: PlayerWithStats[] = [];
 
+    // Distribui goleiros alternadamente
     gks.forEach((gk, i) => i % 2 === 0 ? teamA.push(gk) : teamB.push(gk));
 
-    const sortedField = field.sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0));
-    const getOvr = (t: PlayerWithStats[]) => t.reduce((acc, p) => acc + (p.stats?.overall || 0), 0);
+    // Função para contar jogadores de cada posição em um time
+    const getPositionCount = (team: PlayerWithStats[], position: string) => {
+      return team.filter(p => p.positions && p.positions.includes(position)).length;
+    };
 
-    sortedField.forEach(p => {
-      if (getOvr(teamA) <= getOvr(teamB)) teamA.push(p);
-      else teamB.push(p);
+    // Função para calcular distância da formação ideal (2-1-2)
+    const getFormationDistance = (team: PlayerWithStats[]) => {
+      const posCount = {
+        Ataque: getPositionCount(team, 'Ataque'),
+        Meio: getPositionCount(team, 'Meio'),
+        Defesa: getPositionCount(team, 'Defesa')
+      };
+
+      // Formação ideal: 2 atacantes, 1 meio, 2 defensores
+      return Math.pow(posCount.Ataque - 2, 2) +
+             Math.pow(posCount.Meio - 1, 2) +
+             Math.pow(posCount.Defesa - 2, 2);
+    };
+
+    // Função para determinar a posição principal de um jogador
+    const getPrimaryPosition = (player: PlayerWithStats): string | null => {
+      if (!player.positions || player.positions.length === 0) return null;
+      // Se tiver 2 posições, prioriza a primeira
+      return player.positions[0];
+    };
+
+    // Separa jogadores por posição
+    const attackers = field.filter(p => getPrimaryPosition(p) === 'Ataque');
+    const midfielders = field.filter(p => getPrimaryPosition(p) === 'Meio');
+    const defenders = field.filter(p => getPrimaryPosition(p) === 'Defesa');
+    const noPosition = field.filter(p => !getPrimaryPosition(p));
+
+    // Ordena cada grupo por overall
+    attackers.sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0));
+    midfielders.sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0));
+    defenders.sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0));
+    noPosition.sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0));
+
+    // Função para adicionar jogador ao time que mais precisa daquela posição
+    const addPlayerByPosition = (players: PlayerWithStats[], targetPosition: string) => {
+      players.forEach(player => {
+        const countA = getPositionCount(teamA, targetPosition);
+        const countB = getPositionCount(teamB, targetPosition);
+
+        if (countA < countB) {
+          teamA.push(player);
+        } else if (countB < countA) {
+          teamB.push(player);
+        } else {
+          // Se estão empatados, adiciona ao time com menor distância da formação ideal
+          const tempA = [...teamA, player];
+          const tempB = [...teamB, player];
+
+          const distanceA = getFormationDistance(tempA);
+          const distanceB = getFormationDistance(tempB);
+
+          if (distanceA <= distanceB) {
+            teamA.push(player);
+          } else {
+            teamB.push(player);
+          }
+        }
+      });
+    };
+
+    // Distribui jogadores por posição: Atacantes, Meio-campistas, Defensores
+    addPlayerByPosition(attackers, 'Ataque');
+    addPlayerByPosition(midfielders, 'Meio');
+    addPlayerByPosition(defenders, 'Defesa');
+
+    // Distribui jogadores sem posição definida tentando completar a formação ideal
+    noPosition.forEach(player => {
+      const countAtaqueA = getPositionCount(teamA, 'Ataque');
+      const countMeioA = getPositionCount(teamA, 'Meio');
+      const countDefesaA = getPositionCount(teamA, 'Defesa');
+
+      const countAtaqueB = getPositionCount(teamB, 'Ataque');
+      const countMeioB = getPositionCount(teamB, 'Meio');
+      const countDefesaB = getPositionCount(teamB, 'Defesa');
+
+      // Verifica qual time está mais distante da formação ideal
+      const needsA = {
+        ataque: Math.max(0, 2 - countAtaqueA),
+        meio: Math.max(0, 1 - countMeioA),
+        defesa: Math.max(0, 2 - countDefesaA)
+      };
+
+      const needsB = {
+        ataque: Math.max(0, 2 - countAtaqueB),
+        meio: Math.max(0, 1 - countMeioB),
+        defesa: Math.max(0, 2 - countDefesaB)
+      };
+
+      const totalNeedsA = needsA.ataque + needsA.meio + needsA.defesa;
+      const totalNeedsB = needsB.ataque + needsB.meio + needsB.defesa;
+
+      if (totalNeedsA > totalNeedsB) {
+        teamA.push(player);
+      } else if (totalNeedsB > totalNeedsA) {
+        teamB.push(player);
+      } else {
+        // Se estão iguais, adiciona ao time com menos jogadores
+        if (teamA.length <= teamB.length) {
+          teamA.push(player);
+        } else {
+          teamB.push(player);
+        }
+      }
     });
 
     setTeams({ teamA, teamB });
@@ -368,9 +472,22 @@ const TeamColumn = ({
                   <p className="text-sm font-bold text-white truncate group-hover:text-white transition-colors">
                     {p.name}
                   </p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    {p.is_goalkeeper ? 'Goleiro' : 'Linha'}
-                  </p>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    {p.positions && p.positions.length > 0 ? (
+                      p.positions.map((pos, idx) => (
+                        <span
+                          key={idx}
+                          className="px-1.5 py-0.5 bg-slate-700/60 text-slate-300 rounded text-[8px] font-black uppercase border border-slate-600/50"
+                        >
+                          {pos === 'Goleiro' ? '🧤' : pos === 'Defesa' ? '🛡️' : pos === 'Meio' ? '⚡' : '⚽'} {pos}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        {p.is_goalkeeper ? 'Goleiro' : 'Sem posição'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">

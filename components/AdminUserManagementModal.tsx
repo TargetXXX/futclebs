@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase, Player } from '../services/supabase';
+import { PlayerPositionSelector } from './PlayerPositionSelector';
 
 interface AdminUserManagementModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [editingPositionsUserId, setEditingPositionsUserId] = useState<string | null>(null);
 
   const isSuperUser = SUPER_USER_IDS.includes(currentUserId);
 
@@ -33,6 +35,10 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
       setNewPassword('');
     }
   }, [isOpen, isSuperUser]);
+
+  useEffect(() => {
+    // Monitor changes in editingPositionsUserId
+  }, [editingPositionsUserId, players]);
 
   const handleDeleteUser = async (userId: string) => {
     if (!isSuperUser) {
@@ -57,8 +63,6 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
     setMessage(null);
 
     try {
-      console.log('Deletando dados do usuário:', userId);
-
       const { error: votesError } = await supabase.from('player_votes').delete().or(`voter_id.eq.${userId},target_player_id.eq.${userId}`);
       if (votesError) console.error('Erro ao deletar votos:', votesError);
 
@@ -77,7 +81,6 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
         .eq('id', userId)
         .select();
 
-      console.log('Resultado da deleção:', { deletedPlayer, delPlayerError });
 
       if (delPlayerError) {
         throw new Error(`Erro ao deletar jogador: ${delPlayerError.message}. Verifique as políticas RLS no Supabase.`);
@@ -227,6 +230,13 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setEditingPositionsUserId(p.id)}
+                        className="px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all bg-blue-600 text-white hover:bg-blue-500"
+                        title="Editar posições"
+                      >
+                        📍 Posições
+                      </button>
+                      <button
                         onClick={() => setResettingUserId(resettingUserId === p.id ? null : p.id)}
                         className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${resettingUserId === p.id
                           ? 'bg-slate-700 text-white'
@@ -309,6 +319,21 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
           </div>
         </div>
       )}
+
+    {editingPositionsUserId && (
+      <PlayerPositionSelector
+        isOpen={true}
+        onClose={() => setEditingPositionsUserId(null)}
+        playerId={editingPositionsUserId}
+        playerName={players.find(p => p.id === editingPositionsUserId)?.name || ''}
+        isGoalkeeper={players.find(p => p.id === editingPositionsUserId)?.is_goalkeeper || false}
+        currentPositions={players.find(p => p.id === editingPositionsUserId)?.positions || null}
+        onSave={() => {
+          loadPlayers();
+          setEditingPositionsUserId(null);
+        }}
+      />
+    )}
     </>
   );
 };
