@@ -172,7 +172,7 @@ const PodiumStep: React.FC<{ player: RankingPlayer, rank: number, onClick: () =>
                      'from-amber-600 to-amber-800 shadow-amber-700/20';
   
   const overall = player.stats?.overall ? Math.round(Number(player.stats.overall) * 20) : 0;
-console.log(player);
+
   return (
     <div 
       onClick={onClick}

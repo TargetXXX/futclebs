@@ -13,6 +13,7 @@ export type Player = {
   is_admin: boolean;
   is_goalkeeper: boolean;
   avatar: string | null;
+  positions: string[] | null;
   created_at: string;
 };
 
