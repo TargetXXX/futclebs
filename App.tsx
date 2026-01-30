@@ -43,6 +43,14 @@ const App: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<MatchCategory>('open');
   const [activeAdminMenu, setActiveAdminMenu] = useState<string | null>(null);
 
+  // Super admins hardcoded
+  const SUPER_ADMIN_IDS = [
+    '64043e4d-79e3-4875-974d-4eafa3a23823',
+    '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'
+  ];
+
+  const isSuperAdmin = !!userProfile && SUPER_ADMIN_IDS.includes(userProfile.id);
+
   // Modals
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isMatchPlayersModalOpen, setIsMatchPlayersModalOpen] = useState(false);
@@ -102,9 +110,17 @@ const App: React.FC = () => {
           if (matchRes) {
             const teamA = matchRes.players_team_a || [];
             const teamB = matchRes.players_team_b || [];
+            const allPlayerIds = [...teamA, ...teamB];
+
+            const { data: existingPlayers } = await supabase
+              .from('players')
+              .select('id')
+              .in('id', allPlayerIds);
+
+            const existingPlayerIds = new Set(existingPlayers?.map(p => p.id) || []);
 
             const userTeamIds = teamA.includes(userId) ? teamA : teamB.includes(userId) ? teamB : [];
-            const teammatesIds = userTeamIds.filter(id => id !== userId);
+            const teammatesIds = userTeamIds.filter(id => id !== userId && existingPlayerIds.has(id));
 
             if (teammatesIds.length > 0) {
               const { data: votes } = await supabase
@@ -114,7 +130,7 @@ const App: React.FC = () => {
                 .eq('voter_id', userId)
                 .in('target_player_id', teammatesIds);
 
-              const votedIds = new Set(votes?.map(v => v.target_player_id) || []);
+              const votedIds = new Set(votes?.map(v => v.target_player_id).filter(id => existingPlayerIds.has(id)) || []);
               hasPendingVotes = teammatesIds.some(tid => !votedIds.has(tid));
             }
           }
@@ -234,7 +250,14 @@ const App: React.FC = () => {
   const handleOpenSummaryModal = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchSummaryOpen(true); };
   const handleOpenAdminManagement = (matchId: string) => { setSelectedMatchId(matchId); setIsAdminManagementOpen(true); setActiveAdminMenu(null); };
   const handleOpenTeamSorting = (matchId: string) => { setSelectedMatchId(matchId); setIsTeamSortingOpen(true); setActiveAdminMenu(null); };
-  const handleOpenVotingStatus = (matchId: string) => { setSelectedMatchId(matchId); setIsVotingStatusOpen(true); };
+  const handleOpenVotingStatus = (matchId: string) => {
+    if (!isSuperAdmin) {
+      setError('Acesso negado: apenas super admins podem ver o status de votação');
+      return;
+    }
+    setSelectedMatchId(matchId);
+    setIsVotingStatusOpen(true);
+  };
   const handleOpenMatchFinish = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchFinishOpen(true); setActiveAdminMenu(null); };
   const handleOpenCommentsModal = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchCommentsOpen(true); };
 
@@ -487,21 +510,21 @@ const handleAvatarSaveBase64 = async () => {
               )}
             </div>
             <div className="flex gap-2">
-              {userProfile.is_admin && (
-                <>
-                  <button
-                    onClick={() => setIsAdminUserManagementOpen(true)}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl transition-all text-xs font-black uppercase"
-                  >
-                    Gerenciar Usuários
-                  </button>
-                  <button
-                    onClick={() => setIsCreateMatchOpen(true)}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl transition-all text-xs font-black uppercase shadow-lg shadow-emerald-600/20"
-                  >
-                    Criar Partida
-                  </button>
-                </>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => setIsAdminUserManagementOpen(true)}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl transition-all text-xs font-black uppercase"
+                >
+                  Gerenciar Usuários
+                </button>
+              )}
+              {userProfile?.is_admin && (
+                <button
+                  onClick={() => setIsCreateMatchOpen(true)}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl transition-all text-xs font-black uppercase shadow-lg shadow-emerald-600/20"
+                >
+                  Criar Partida
+                </button>
               )}
               <button onClick={handleLogout} className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-500 hover:text-white transition-all text-xs font-black uppercase">
                 Sair
@@ -673,7 +696,7 @@ const handleAvatarSaveBase64 = async () => {
                             </>
                           )}
 
-                          {match.status === 'finished' && (
+                          {match.status === 'finished' && isSuperAdmin && (
                             <button
                               onClick={() => handleOpenVotingStatus(match.id)}
                               className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 text-slate-400 hover:text-white border border-slate-800 rounded-xl font-black text-[9px] uppercase transition-all flex items-center justify-center gap-2"
@@ -871,7 +894,7 @@ const handleAvatarSaveBase64 = async () => {
         <ConfirmationModal isOpen={isDeleteConfirmOpen} onClose={() => { setIsDeleteConfirmOpen(false); setSelectedMatchId(null); }} onConfirm={handleDeleteMatch} isLoading={loading} title="Excluir Partida?" description="Esta ação é irreversível. Todos os dados da partida, incluindo inscritos e resultados, serão removidos permanentemente." confirmLabel="Sim, Excluir" cancelLabel="Cancelar" />
         <MiniStatsModal isOpen={isMiniStatsOpen} onClose={() => setIsMiniStatsOpen(false)} name={selectedPlayerData?.name || ''} isGoalkeeper={selectedPlayerData?.is_goalkeeper || false} stats={selectedPlayerData?.stats || null} avatar={selectedPlayerData?.avatar || null} />
         <MatchCommentsModal isOpen={isMatchCommentsOpen} onClose={() => setIsMatchCommentsOpen(false)} matchId={selectedMatchId || ''} currentUserId={userProfile.id} isAdmin={userProfile.is_admin} />
-        <VotingStatusModal isOpen={isVotingStatusOpen} onClose={() => setIsVotingStatusOpen(false)} matchId={selectedMatchId || ''} isAdmin={userProfile.is_admin} />
+        <VotingStatusModal isOpen={isVotingStatusOpen} onClose={() => setIsVotingStatusOpen(false)} matchId={selectedMatchId || ''} isAdmin={isSuperAdmin} />
       </div>
     );
   }
