@@ -43,13 +43,17 @@ USING (
 -- PLAYERS TABLE POLICIES
 -- ============================================
 
--- Policy: Allow super admins to delete users
+-- Policy: Allow super admins to delete users (except super admins themselves)
 CREATE POLICY "Super admins can delete players"
 ON players
 FOR DELETE
 TO authenticated
 USING (
   auth.uid() IN (
+    '64043e4d-79e3-4875-974d-4eafa3a23823'::uuid,
+    '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'::uuid
+  )
+  AND id NOT IN (
     '64043e4d-79e3-4875-974d-4eafa3a23823'::uuid,
     '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'::uuid
   )

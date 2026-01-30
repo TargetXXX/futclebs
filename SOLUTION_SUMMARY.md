@@ -57,14 +57,20 @@ WITH CHECK (
 
 ### 2. Additional Policies for User Deletion
 
-Also created DELETE policies for super admins on:
+Created DELETE policies for super admins on:
+- `players` - Delete user accounts (with protection against deleting super admins)
 - `player_votes` - Delete votes when removing users
-- `players` - Delete user accounts
 - `player_stats` - Delete user statistics
 - `match_players` - Delete match participation records
 - `match_comments` - Delete user comments
 
-These policies support the user deletion feature in `AdminUserManagementModal.tsx`.
+**Security Enhancement:** The `players` DELETE policy includes an additional check to prevent super admins from being deleted:
+```sql
+USING (
+  auth.uid() IN (super_admin_ids) 
+  AND id NOT IN (super_admin_ids)  -- Prevents deleting super admins
+)
+```
 
 ## Files Created
 
@@ -135,7 +141,7 @@ auth.uid() IN (
 )
 ```
 
-**Frontend (App.tsx, lines 47-50):**
+**Frontend (App.tsx - SUPER_ADMIN_IDS constant):**
 ```typescript
 const SUPER_ADMIN_IDS = [
   '64043e4d-79e3-4875-974d-4eafa3a23823',
@@ -160,8 +166,8 @@ const SUPER_ADMIN_IDS = [
 - Only 2 specific users can perform these operations
 - Frontend validation prevents UI access for non-super-admins
 - Backend RLS policies enforce restrictions at the database level
-- Cannot delete other super admins
-- Cannot delete themselves
+- Database-level protection prevents deletion of super admin accounts
+- Super admins cannot delete themselves (enforced in SQL policy)
 
 ✅ **Minimal privilege escalation:**
 - Policies are narrowly scoped to specific operations
@@ -207,8 +213,8 @@ After deploying the policies, verify:
 
 ## Related Code Locations
 
-- **VotingStatusModal.tsx** (line 41-78): `handleForceCompleteVote` function
-- **App.tsx** (line 47-52): Super admin ID definition and check
+- **VotingStatusModal.tsx**: `handleForceCompleteVote` function (force complete vote feature)
+- **App.tsx**: `SUPER_ADMIN_IDS` constant definition and `isSuperAdmin` check
 - **AdminUserManagementModal.tsx**: User deletion feature
 - **services/supabase.ts**: Supabase client configuration
 

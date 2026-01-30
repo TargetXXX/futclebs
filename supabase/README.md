@@ -72,7 +72,7 @@ USING (auth.uid() IN ('64043e4d-...'::uuid, '5e05a3d9-...'::uuid));
 
 ### 3. Additional Delete Policies
 Similar policies for:
-- `players` table - Delete users
+- `players` table - Delete users (except super admins themselves)
 - `player_stats` table - Delete user statistics
 - `match_players` table - Delete match participation records
 - `match_comments` table - Delete user comments
@@ -123,7 +123,7 @@ Ensure you're running the SQL as a user with sufficient privileges (typically th
 - These policies grant powerful permissions to specific user IDs
 - Only the two hardcoded super admin users can perform these operations
 - Regular admin users (with `is_admin = true`) do NOT get these permissions
-- Super admins cannot delete themselves or other super admins
+- Super admins cannot delete themselves or other super admins (enforced at database level)
 
 ⚠️ **Hardcoded User IDs:**
 - The super admin user IDs are hardcoded in both:

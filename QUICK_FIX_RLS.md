@@ -53,10 +53,13 @@ USING (auth.uid() IN (
   '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'::uuid
 ));
 
--- Allow deleting users
+-- Allow deleting users (except super admins themselves)
 CREATE POLICY "Super admins can delete players"
 ON players FOR DELETE TO authenticated
 USING (auth.uid() IN (
+  '64043e4d-79e3-4875-974d-4eafa3a23823'::uuid,
+  '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'::uuid
+) AND id NOT IN (
   '64043e4d-79e3-4875-974d-4eafa3a23823'::uuid,
   '5e05a3d9-3a9a-4ad0-99f7-72315bbf5990'::uuid
 ));
@@ -98,7 +101,7 @@ USING (auth.uid() IN (
 
 **Still getting RLS errors?**
 - Verify policies are **enabled** in Database → Policies
-- Confirm user IDs match those in `App.tsx` (lines 47-50)
+- Confirm user IDs match those in `App.tsx` (in the `SUPER_ADMIN_IDS` constant)
 - Clear browser cache and retry
 
 ## Done! 🎉
