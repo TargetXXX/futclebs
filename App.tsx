@@ -242,7 +242,14 @@ const App: React.FC = () => {
   const handleOpenSummaryModal = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchSummaryOpen(true); };
   const handleOpenAdminManagement = (matchId: string) => { setSelectedMatchId(matchId); setIsAdminManagementOpen(true); setActiveAdminMenu(null); };
   const handleOpenTeamSorting = (matchId: string) => { setSelectedMatchId(matchId); setIsTeamSortingOpen(true); setActiveAdminMenu(null); };
-  const handleOpenVotingStatus = (matchId: string) => { setSelectedMatchId(matchId); setIsVotingStatusOpen(true); };
+  const handleOpenVotingStatus = (matchId: string) => {
+    if (!isSuperAdmin) {
+      setError('Acesso negado: apenas super admins podem ver o status de votação');
+      return;
+    }
+    setSelectedMatchId(matchId);
+    setIsVotingStatusOpen(true);
+  };
   const handleOpenMatchFinish = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchFinishOpen(true); setActiveAdminMenu(null); };
   const handleOpenCommentsModal = (matchId: string) => { setSelectedMatchId(matchId); setIsMatchCommentsOpen(true); };
 
@@ -681,7 +688,7 @@ const handleAvatarSaveBase64 = async () => {
                             </>
                           )}
 
-                          {match.status === 'finished' && (
+                          {match.status === 'finished' && isSuperAdmin && (
                             <button
                               onClick={() => handleOpenVotingStatus(match.id)}
                               className="w-full sm:w-auto px-4 py-2.5 bg-slate-900 text-slate-400 hover:text-white border border-slate-800 rounded-xl font-black text-[9px] uppercase transition-all flex items-center justify-center gap-2"
@@ -879,7 +886,7 @@ const handleAvatarSaveBase64 = async () => {
         <ConfirmationModal isOpen={isDeleteConfirmOpen} onClose={() => { setIsDeleteConfirmOpen(false); setSelectedMatchId(null); }} onConfirm={handleDeleteMatch} isLoading={loading} title="Excluir Partida?" description="Esta ação é irreversível. Todos os dados da partida, incluindo inscritos e resultados, serão removidos permanentemente." confirmLabel="Sim, Excluir" cancelLabel="Cancelar" />
         <MiniStatsModal isOpen={isMiniStatsOpen} onClose={() => setIsMiniStatsOpen(false)} name={selectedPlayerData?.name || ''} isGoalkeeper={selectedPlayerData?.is_goalkeeper || false} stats={selectedPlayerData?.stats || null} avatar={selectedPlayerData?.avatar || null} />
         <MatchCommentsModal isOpen={isMatchCommentsOpen} onClose={() => setIsMatchCommentsOpen(false)} matchId={selectedMatchId || ''} currentUserId={userProfile.id} isAdmin={userProfile.is_admin} />
-        <VotingStatusModal isOpen={isVotingStatusOpen} onClose={() => setIsVotingStatusOpen(false)} matchId={selectedMatchId || ''} isAdmin={userProfile.is_admin} />
+        <VotingStatusModal isOpen={isVotingStatusOpen} onClose={() => setIsVotingStatusOpen(false)} matchId={selectedMatchId || ''} isAdmin={isSuperAdmin} />
       </div>
     );
   }
