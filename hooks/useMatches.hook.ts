@@ -93,27 +93,28 @@ export const useMatches = () => {
   }, []);
 
   const deleteMatch = useCallback(async (matchId: string) => {
-    console.log('🗑️ Iniciando exclusão da partida:', matchId);
+    const isDev = import.meta.env.DEV;
+    if (isDev) console.log('🗑️ Iniciando exclusão da partida:', matchId);
 
     // Verificação de autenticação
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error('❌ Erro de autenticação:', authError);
+      if (isDev) console.error('❌ Erro de autenticação:', authError);
       throw new Error('Você precisa estar logado para deletar partidas');
     }
-    console.log('👤 Usuário autenticado:', user.id);
+    if (isDev) console.log('👤 Usuário autenticado:', user.id);
 
     // Verificação de super admin
     const superAdminIds = ['5e05a3d9-3a9a-4ad0-99f7-72315bbf5990', '64043e4d-79e3-4875-974d-4eafa3a23823'];
     const isSuperAdmin = superAdminIds.includes(user.id);
-    console.log('🔐 É super admin?', isSuperAdmin, '| Seu ID:', user.id);
+    if (isDev) console.log('🔐 É super admin?', isSuperAdmin, '| Seu ID:', user.id);
 
     if (!isSuperAdmin) {
       throw new Error('Acesso negado: apenas super admins podem deletar partidas');
     }
 
     // Deletar relacionamentos em ordem (de dependentes para independentes)
-    console.log('🧹 Deletando comentários...');
+    if (isDev) console.log('🧹 Deletando comentários...');
     const { error: commentsError, data: commentsData } = await supabase
       .from('match_comments')
       .delete()
@@ -121,12 +122,12 @@ export const useMatches = () => {
       .select();
     
     if (commentsError) {
-      console.error('❌ Erro ao deletar comentários:', commentsError);
+      if (isDev) console.error('❌ Erro ao deletar comentários:', commentsError);
     } else {
-      console.log('✅ Comentários deletados:', commentsData?.length || 0);
+      if (isDev) console.log('✅ Comentários deletados:', commentsData?.length || 0);
     }
 
-    console.log('🧹 Deletando votos...');
+    if (isDev) console.log('🧹 Deletando votos...');
     const { error: votesError, data: votesData } = await supabase
       .from('player_votes')
       .delete()
@@ -134,12 +135,12 @@ export const useMatches = () => {
       .select();
     
     if (votesError) {
-      console.error('❌ Erro ao deletar votos:', votesError);
+      if (isDev) console.error('❌ Erro ao deletar votos:', votesError);
     } else {
-      console.log('✅ Votos deletados:', votesData?.length || 0);
+      if (isDev) console.log('✅ Votos deletados:', votesData?.length || 0);
     }
 
-    console.log('🧹 Deletando resultados...');
+    if (isDev) console.log('🧹 Deletando resultados...');
     const { error: resultsError, data: resultsData } = await supabase
       .from('match_results')
       .delete()
@@ -147,12 +148,12 @@ export const useMatches = () => {
       .select();
     
     if (resultsError) {
-      console.error('❌ Erro ao deletar resultados:', resultsError);
+      if (isDev) console.error('❌ Erro ao deletar resultados:', resultsError);
     } else {
-      console.log('✅ Resultados deletados:', resultsData?.length || 0);
+      if (isDev) console.log('✅ Resultados deletados:', resultsData?.length || 0);
     }
 
-    console.log('🧹 Deletando jogadores...');
+    if (isDev) console.log('🧹 Deletando jogadores...');
     const { error: playersError, data: playersData } = await supabase
       .from('match_players')
       .delete()
@@ -160,13 +161,13 @@ export const useMatches = () => {
       .select();
     
     if (playersError) {
-      console.error('❌ Erro ao deletar jogadores:', playersError);
+      if (isDev) console.error('❌ Erro ao deletar jogadores:', playersError);
     } else {
-      console.log('✅ Jogadores deletados:', playersData?.length || 0);
+      if (isDev) console.log('✅ Jogadores deletados:', playersData?.length || 0);
     }
 
     // Finalmente, deletar a partida
-    console.log('🗑️ Deletando partida principal...');
+    if (isDev) console.log('🗑️ Deletando partida principal...');
     const { error: matchError, data: matchData } = await supabase
       .from('matches')
       .delete()
@@ -174,17 +175,17 @@ export const useMatches = () => {
       .select();
 
     if (matchError) {
-      console.error('❌ Erro ao deletar partida:', matchError);
+      if (isDev) console.error('❌ Erro ao deletar partida:', matchError);
       throw new Error(`Erro ao deletar partida: ${matchError.message}`);
     }
 
     if (!matchData || matchData.length === 0) {
-      console.error('⚠️ Partida não foi deletada (pode não existir ou sem permissão)');
+      if (isDev) console.error('⚠️ Partida não foi deletada (pode não existir ou sem permissão)');
       throw new Error('Falha ao deletar: A partida não foi encontrada ou você não tem permissão para deletá-la');
     }
 
-    console.log('✅ Partida deletada com sucesso:', matchData);
-    console.log('🎉 Exclusão concluída!');
+    if (isDev) console.log('✅ Partida deletada com sucesso:', matchData);
+    if (isDev) console.log('🎉 Exclusão concluída!');
   }, []);
 
   return {

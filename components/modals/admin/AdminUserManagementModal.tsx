@@ -250,8 +250,9 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
                         onClick={() => setEditingPositionsUserId(p.id)}
                         className="px-4 py-2.5 sm:py-2 rounded-xl text-[10px] font-black uppercase transition-all bg-blue-600 text-white hover:bg-blue-500 flex items-center justify-center gap-1.5"
                         title="Editar posições"
+                        aria-label="Editar posições do jogador"
                       >
-                        <span>📍</span>
+                        <span aria-hidden="true">📍</span>
                         <span className="hidden sm:inline">Posições</span>
                         <span className="sm:hidden">Editar Posições</span>
                       </button>
@@ -261,8 +262,9 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
                           ? 'bg-slate-700 text-white'
                           : 'bg-emerald-600 text-slate-950 hover:bg-emerald-500'
                           }`}
+                        aria-label={resettingUserId === p.id ? 'Cancelar alteração de senha' : 'Alterar senha do usuário'}
                       >
-                        <span>{resettingUserId === p.id ? '❌' : '🔑'}</span>
+                        <span aria-hidden="true">{resettingUserId === p.id ? '❌' : '🔑'}</span>
                         <span className="hidden sm:inline">{resettingUserId === p.id ? 'Cancelar' : 'Alterar Senha'}</span>
                         <span className="sm:hidden">{resettingUserId === p.id ? 'Cancelar Alteração' : 'Alterar Senha'}</span>
                       </button>
@@ -277,8 +279,9 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
                             : 'bg-red-600 text-white hover:bg-red-500'
                           }`}
                         title={SUPER_ADMIN_IDS.includes(p.id) ? 'Super admins não podem ser deletados' : p.id === currentUserId ? 'Você não pode deletar a si mesmo' : 'Deletar usuário'}
+                        aria-label={SUPER_ADMIN_IDS.includes(p.id) ? 'Super admins não podem ser deletados' : p.id === currentUserId ? 'Você não pode deletar a si mesmo' : 'Deletar usuário'}
                       >
-                        <span>🗑️</span>
+                        <span aria-hidden="true">🗑️</span>
                         <span>{deletingUserId === p.id ? 'Deletando...' : 'Deletar'}</span>
                       </button>
                     </div>
