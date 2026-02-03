@@ -109,7 +109,7 @@ export const MiniStatsModal: React.FC<MiniStatsModalProps> = ({
 
                   <div className="flex items-end gap-2 mt-2">
                     <span className="text-4xl font-black text-emerald-500 tabular-nums leading-none animate-in fade-in duration-300">
-                      {stats?.overall ? Math.round(Number(stats.overall) * SCALING) : '--'}
+                      {stats?.overall ?? '--'}
                     </span>
                     <span className="text-[10px] font-black text-emerald-500/60 uppercase pb-1 tracking-widest">
                       Overall

@@ -13,9 +13,16 @@ export type Player = {
   is_admin: boolean;
   is_goalkeeper: boolean;
   avatar: string | null;
-  positions: string[] | null;
+  positions: String[] | null;
   created_at: string;
 };
+
+export enum PlayerPosition {
+  MEIO = 'MEIO',
+  DEFESA = 'DEFESA',
+  ATAQUE = 'ATAQUE',
+  GOLEIRO = 'GOLEIRO',
+}
 
 export type PlayerStats = {
   player_id: string;
@@ -24,6 +31,7 @@ export type PlayerStats = {
   passe: number;
   drible: number;
   defesa: number;
+  esportividade: number;
   fisico: number;
   overall: number;
 };

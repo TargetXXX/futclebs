@@ -81,7 +81,7 @@ export const FullRankingModal: React.FC<FullRankingModalProps> = ({ isOpen, onCl
             </div>
           ) : (
             filteredPlayers.map((player, idx) => {
-              const overall = player.stats?.overall ? Math.round(Number(player.stats.overall) * 20) : 0;
+              const overall = player.stats?.overall ??  0;
               const rank = idx + 1;
               
               return (

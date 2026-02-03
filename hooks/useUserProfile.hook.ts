@@ -1,9 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase, Player, PlayerStats } from '../services/supabase';
+import { calculateByPosition } from '@/utils/overall.utils';
 
 export const useUserProfile = () => {
   const [userProfile, setUserProfile] = useState<Player | null>(null);
   const [userStats, setUserStats] = useState<PlayerStats | null>(null);
+
+
 
   const fetchUserProfile = useCallback(async (userId: string) => {
     try {
@@ -19,11 +22,14 @@ export const useUserProfile = () => {
         setUserProfile(player);
         const { data: stats } = await supabase
           .from('player_stats')
-          .select('*')
+          .select('player_id, velocidade, finalizacao, passe, drible, defesa, fisico, esportividade')
           .eq('player_id', userId)
           .maybeSingle();
 
-        if (stats) setUserStats(stats);
+        if (stats) {
+          const overallS = calculateByPosition(player, stats);
+          setUserStats({...stats, overall: overallS });
+        }
       } else {
         setUserProfile(null);
       }

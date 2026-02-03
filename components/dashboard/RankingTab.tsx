@@ -1,7 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase, PlayerStats } from '../../services/supabase.ts';
+import { supabase, PlayerStats, PlayerPosition } from '../../services/supabase.ts';
 import { FullRankingModal } from '../modals/player/FullRankingModal.tsx';
+import { calculateByPosition } from '@/utils/overall.utils.ts';
 
 interface RankingPlayer {
   id: string;
@@ -9,6 +10,7 @@ interface RankingPlayer {
   is_goalkeeper: boolean;
   stats: PlayerStats | null;
   avatar: string | null;
+  positions?: String[] | null;
 }
 
 interface RankingTabProps {
@@ -35,21 +37,27 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
           id,
           name,
           is_goalkeeper,
-          player_stats (*),
-          avatar
+          player_stats (player_id, velocidade, finalizacao, passe, drible, defesa, fisico, esportividade),
+          avatar,
+          positions
         `);
 
       if (error) throw error;
+      console.log('Data:', data);
 
       const players: RankingPlayer[] = (data as any[]).map(p => ({
+        
         id: p.id,
         name: p.name,
         is_goalkeeper: p.is_goalkeeper,
-        stats: Array.isArray(p.player_stats) ? p.player_stats[0] : p.player_stats,
-        avatar: p.avatar
+        stats: p.player_stats ? {...p.player_stats, overall: calculateByPosition(p, p.player_stats)} : null,
+        avatar: p.avatar,
+        positions: p.positions || null
       }));
 
       setAllPlayers(players);
+
+      console.log('Players fetched for ranking:', players);
 
       // Ordenar por Overall para os Top 3
       const sortedField = [...players]
@@ -171,7 +179,8 @@ const PodiumStep: React.FC<{ player: RankingPlayer, rank: number, onClick: () =>
                      isSecond ? 'from-slate-300 to-slate-500 shadow-slate-400/20' : 
                      'from-amber-600 to-amber-800 shadow-amber-700/20';
   
-  const overall = player.stats?.overall ? Math.round(Number(player.stats.overall) * 20) : 0;
+
+  const overall = player.stats?.overall ?? 0;
 
   return (
     <div 

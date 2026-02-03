@@ -67,7 +67,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
 
           <div className="flex items-baseline gap-2 mb-3">
             <span className="text-4xl sm:text-5xl font-black text-white tabular-nums">
-              {userStats?.overall ? Math.round(Number(userStats.overall) * 20) : '--'}
+              {userStats?.overall ?? '--'}
             </span>
             <span className="text-emerald-300 font-bold text-lg">OVR</span>
           </div>
