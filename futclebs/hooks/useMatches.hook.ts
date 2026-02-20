@@ -9,44 +9,30 @@ export const useMatches = (organizationId: string | null) => {
     if (!organizationId) return;
 
     try {
-      const { data } = await api.get(
-        `/organizations/${organizationId}/tournaments`
-      );
+      const { data } = await api.get(`/organizations/${organizationId}/matches`);
+      const list = data?.data ?? data ?? [];
 
-      // Ajuste conforme seu retorno real da API
-      const tournaments = data || [];
+      const normalized: MatchWithExtras[] = (list || []).map((match: any) => ({
+        ...match,
+        playerCount: match.players_count || 0,
+        isUserRegistered: false,
+        hasPendingVotes: Boolean(match.has_pending_votes),
+      }));
 
-      const allMatches: MatchWithExtras[] = [];
-
-      for (const tournament of tournaments) {
-        if (tournament.matches) {
-          tournament.matches.forEach((match: any) => {
-            allMatches.push({
-              ...match,
-              playerCount: match.players_count || 0,
-              isUserRegistered: false,
-              hasPendingVotes: false
-            });
-          });
-        }
-      }
-
-      setMatches(allMatches);
+      setMatches(normalized);
     } catch (err) {
       console.error('Erro ao carregar partidas:', err);
+      setMatches([]);
     }
   }, [organizationId]);
 
-  const deleteMatch = useCallback(
-    async (matchId: string) => {
-      await api.delete(`/matches/${matchId}`);
-    },
-    []
-  );
+  const deleteMatch = useCallback(async (matchId: string) => {
+    await api.delete(`/matches/${matchId}`);
+  }, []);
 
   return {
     matches,
     fetchMatches,
-    deleteMatch
+    deleteMatch,
   };
 };

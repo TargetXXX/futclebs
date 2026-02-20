@@ -12,6 +12,8 @@ interface MatchData {
   match_date: string;
   status: MatchStatus;
   tournament_id?: number | null;
+  players_count?: number;
+  has_pending_votes?: boolean;
 }
 
 interface TournamentData {
@@ -28,6 +30,8 @@ interface OrganizationPlayer {
   name: string;
   avatar?: string | null;
   primary_position?: string | null;
+  goals_total?: number;
+  assists_total?: number;
   pivot?: {
     is_admin?: boolean;
     overall?: number;
@@ -85,28 +89,45 @@ export default function OrganizationDashboard() {
   const fetchDashboardData = async () => {
     if (!orgId) return;
 
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      try {
-        const [orgResponse, meResponse, tournamentsResponse] = await Promise.all([
-          api.get(`/organizations/${orgId}`),
-          api.get("/auth/me"),
-          api.get(`/organizations/${orgId}/tournaments`),
-        ]);
+    setLoading(true);
+    try {
+      const [orgResponse, meResponse, tournamentsResponse, matchesResponse] = await Promise.all([
+        api.get(`/organizations/${orgId}`),
+        api.get("/auth/me"),
+        api.get(`/organizations/${orgId}/tournaments`),
+        api.get(`/organizations/${orgId}/matches`),
+      ]);
 
       const orgPayload = orgResponse.data?.data ?? orgResponse.data;
       const mePayload = meResponse.data?.data ?? meResponse.data;
       const tournamentsPayload = tournamentsResponse.data?.data ?? tournamentsResponse.data ?? [];
+      const matchesPayload = matchesResponse.data?.data ?? matchesResponse.data ?? [];
 
       setOrganization(orgPayload);
       setUser(mePayload);
       setTournaments(tournamentsPayload as TournamentData[]);
 
-      const flattenedMatches: MatchData[] = (tournamentsPayload as TournamentData[]).flatMap((tournament) =>
-        (tournament.matches ?? []).map((match) => ({ ...match, tournament_id: tournament.id }))
+      const finishedMatches = (matchesPayload as MatchData[]).filter((match) => match.status === "finished");
+
+      const voteStatusEntries = await Promise.all(
+        finishedMatches.map(async (match) => {
+          try {
+            const { data } = await api.get(`/matches/${match.id}/votes/status`);
+            return [match.id, !Boolean(data?.is_fully_voted)] as const;
+          } catch {
+            return [match.id, false] as const;
+          }
+        })
       );
 
-      setMatches(flattenedMatches);
+      const pendingByMatchId = new Map<number, boolean>(voteStatusEntries);
+
+      const normalizedMatches = (matchesPayload as MatchData[]).map((match) => ({
+        ...match,
+        has_pending_votes: pendingByMatchId.get(match.id) ?? false,
+      }));
+
+      setMatches(normalizedMatches);
     } catch (fetchError) {
       console.error("Erro ao carregar dashboard da organização", fetchError);
       setOrganization(null);
@@ -150,13 +171,25 @@ export default function OrganizationDashboard() {
   const topThreePlayers = rankingPlayers.slice(0, 3);
   const restOfRanking = rankingPlayers.slice(3);
 
+  const topScorers = useMemo(
+    () => [...(organization?.players ?? [])].sort((a, b) => (b.goals_total ?? 0) - (a.goals_total ?? 0)).slice(0, 5),
+    [organization?.players]
+  );
+
+  const topAssisters = useMemo(
+    () => [...(organization?.players ?? [])].sort((a, b) => (b.assists_total ?? 0) - (a.assists_total ?? 0)).slice(0, 5),
+    [organization?.players]
+  );
+
+  const pendingMatches = matches.filter((match) => match.status === "finished" && match.has_pending_votes);
+
   const content =
     activeTab === "open"
       ? openMatches
       : activeTab === "finished"
       ? finishedMatches
       : activeTab === "pending"
-      ? []
+      ? pendingMatches
       : rankingPlayers;
 
   const submitCreateMatch = async (event: FormEvent) => {
@@ -174,7 +207,7 @@ export default function OrganizationDashboard() {
     try {
       await api.post("/matches", {
         organization_id: Number(orgId),
-        name: newMatchName.trim() || "Pelada Futclebs",
+        name: newMatchName.trim() || "Rachão Futclebs",
         match_date: newMatchDate,
         tournament_id: newMatchTournamentId === "none" ? null : Number(newMatchTournamentId),
       });
@@ -328,7 +361,7 @@ export default function OrganizationDashboard() {
                 ? finishedMatches.length
                 : tab.key === "ranking"
                 ? rankingPlayers.length
-                : 0;
+                : pendingMatches.length;
 
             return (
               <button
@@ -429,6 +462,7 @@ export default function OrganizationDashboard() {
                     <p className="mt-2 text-lg font-bold">{player.name}</p>
                     <p className="text-xs text-[#6a7ea8] uppercase">{player.primary_position || "Linha"}</p>
                     <p className="text-4xl font-black text-emerald-400 mt-4">{player.pivot?.overall ?? 0}</p>
+                    <p className="text-xs text-[#9fb5db] mt-2">⚽ {player.goals_total ?? 0} • 🅰️ {player.assists_total ?? 0}</p>
                   </article>
                 ))}
               </div>
@@ -463,12 +497,40 @@ export default function OrganizationDashboard() {
                     <div>
                       <p className="font-semibold">#{index + 4} {player.name}</p>
                       <p className="text-xs text-[#6a7ea8] uppercase">{player.primary_position || "Linha"}</p>
+                      <p className="text-xs text-[#9fb5db]">⚽ {player.goals_total ?? 0} • 🅰️ {player.assists_total ?? 0}</p>
                     </div>
                     <span className="text-2xl font-black text-emerald-400">{player.pivot?.overall ?? 0}</span>
                   </article>
                 ))}
               </div>
+
+              <div className="grid md:grid-cols-2 gap-3">
+                <article className="rounded-2xl border border-[#1f3358] bg-[#04173b] p-4">
+                  <h4 className="font-black text-sm uppercase text-emerald-300">Ranking de Artilheiros</h4>
+                  <div className="mt-3 space-y-2">
+                    {topScorers.map((player, index) => (
+                      <div key={`scorer-${player.id}`} className="flex items-center justify-between text-sm">
+                        <span>#{index + 1} {player.name}</span>
+                        <span className="font-black text-emerald-400">⚽ {player.goals_total ?? 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+
+                <article className="rounded-2xl border border-[#1f3358] bg-[#04173b] p-4">
+                  <h4 className="font-black text-sm uppercase text-blue-300">Ranking de Assistentes</h4>
+                  <div className="mt-3 space-y-2">
+                    {topAssisters.map((player, index) => (
+                      <div key={`assist-${player.id}`} className="flex items-center justify-between text-sm">
+                        <span>#{index + 1} {player.name}</span>
+                        <span className="font-black text-blue-300">🅰️ {player.assists_total ?? 0}</span>
+                      </div>
+                    ))}
+                  </div>
+                </article>
+              </div>
             </div>
+
           )}
         </section>
       </div>

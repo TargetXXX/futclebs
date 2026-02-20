@@ -11,7 +11,7 @@ class TournamentService
     public function getByOrganization(int $organizationId)
     {
         return Tournament::where('organization_id', $organizationId)
-            ->with('teams')
+            ->with(['teams', 'matches.result'])
             ->get();
     }
 

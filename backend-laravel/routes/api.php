@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Requests\Match\MatchPlayerController;
+use App\Http\Controllers\MatchPlayerController;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\AuthController;
@@ -122,6 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
         */
 
         Route::post('/matches', [MatchController::class, 'store']);
+        Route::get('/organizations/{organization}/matches', [MatchController::class, 'index']);
         Route::get('/matches/{match}', [MatchController::class, 'show']);
 
         /*
@@ -142,6 +143,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/matches/{match}/players', [MatchPlayerController::class, 'index']);
         Route::get('/matches/{match}/players/{player}', [MatchPlayerController::class, 'show']);
+        Route::post('/matches/{match}/players/{player}', [MatchPlayerController::class, 'store']);
+        Route::delete('/matches/{match}/players/{player}', [MatchPlayerController::class, 'destroy']);
 
         /*
         |--------------------------------------------------------------------------
@@ -160,6 +163,7 @@ Route::middleware('auth:sanctum')->group(function () {
         */
 
         Route::post('/matches/{match}/votes', [PlayerVoteController::class, 'store']);
+        Route::get('/matches/{match}/votes/status', [PlayerVoteController::class, 'status']);
 
 
         /*

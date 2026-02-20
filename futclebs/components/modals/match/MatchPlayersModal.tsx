@@ -56,7 +56,7 @@ export const MatchPlayersModal: React.FC<MatchPlayersModalProps> = ({ isOpen, on
   const handleRegister = async () => {
     setActionLoading(true);
     try {
-      await api.put(`/matches/${matchId}/players/${currentUserId}/stats`, {});
+      await api.post(`/matches/${matchId}/players/${currentUserId}`);
       await fetchRegisteredPlayers();
       onRefreshMatchList?.();
     } catch (e) {

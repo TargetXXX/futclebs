@@ -1,9 +1,10 @@
 <?php
+
 namespace App\Http\Controllers;
-use App\Http\Controllers\Controller;
+
 use App\Http\Requests\Vote\StorePlayerVoteRequest;
 use App\Models\MatchModel;
-use PlayerVoteService;
+use App\Services\PlayerVoteService;
 
 class PlayerVoteController extends Controller
 {
@@ -21,5 +22,10 @@ class PlayerVoteController extends Controller
         );
 
         return response()->json($vote, 201);
+    }
+
+    public function status(MatchModel $match)
+    {
+        return response()->json($this->service->statusByMatch($match));
     }
 }

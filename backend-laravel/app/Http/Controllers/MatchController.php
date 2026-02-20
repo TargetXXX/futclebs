@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\MatchModel;
 use App\Http\Requests\Match\StoreMatchRequest;
 use App\Http\Resources\MatchResource;
-
 use App\Services\MatchService;
 
 class MatchController extends Controller
@@ -13,6 +12,13 @@ class MatchController extends Controller
     public function __construct(
         private MatchService $matchService
     ) {
+    }
+
+    public function index($organizationId)
+    {
+        $matches = $this->matchService->getByOrganization((int) $organizationId);
+
+        return MatchResource::collection($matches);
     }
 
     public function store(StoreMatchRequest $request)
@@ -29,4 +35,3 @@ class MatchController extends Controller
         return new MatchResource($match);
     }
 }
-
