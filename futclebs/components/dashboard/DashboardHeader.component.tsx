@@ -1,5 +1,5 @@
+import { Player } from '@/services/axios';
 import React from 'react';
-import { Player } from '../../services/supabase.ts';
 
 interface DashboardHeaderProps {
   userProfile: Player;

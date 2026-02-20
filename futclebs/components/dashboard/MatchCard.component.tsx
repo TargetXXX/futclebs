@@ -1,6 +1,6 @@
 import React from 'react';
 import { MatchWithExtras } from '@/types/app.types';
-import { Player } from '@/services/supabase';
+import { Player } from '@/services/axios';
 
 interface MatchCardProps {
   match: MatchWithExtras;

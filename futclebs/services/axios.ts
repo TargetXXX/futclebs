@@ -1,10 +1,32 @@
+import { User } from "@supabase/supabase-js";
+import axios from "axios";
 
-import { createClient } from '@supabase/supabase-js';
+export const api = axios.create({
+  baseURL: "http://localhost:8000/api",
+  headers: {
+    Accept: "application/json",
+  },
+});
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
- 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem("token");
+    }
+    return Promise.reject(error);
+  }
+);
 
 export type Player = {
   id: string;
@@ -15,7 +37,16 @@ export type Player = {
   avatar: string | null;
   positions: String[] | null;
   created_at: string;
+  organizations: Organization[] | null
 };
+
+export type Organization = {
+    id: number;
+    name: string;
+    description: string;
+    actice: boolean;
+    created_at: string;
+}
 
 export enum PlayerPosition {
   MEIO = 'MEIO',
@@ -83,3 +114,8 @@ export type MatchComment = {
   created_at: string;
   player_name?: string;
 };
+
+export type Session = {
+    user: Player | null;
+    token: string | null;
+}

@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase, PlayerStats, PlayerPosition } from '../../services/supabase.ts';
 import { FullRankingModal } from '../modals/player/FullRankingModal.tsx';
 import { calculateByPosition } from '@/utils/overall.utils.ts';
+import { api, PlayerStats } from '@/services/axios.ts';
+import { useAuth } from '@/contexts/AuthContext.tsx';
 
 interface RankingPlayer {
   id: string;
@@ -18,6 +19,7 @@ interface RankingTabProps {
 }
 
 export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
+  const {player} = useAuth();
   const [loading, setLoading] = useState(true);
   const [allPlayers, setAllPlayers] = useState<RankingPlayer[]>([]);
   const [fieldRanking, setFieldRanking] = useState<RankingPlayer[]>([]);
@@ -31,7 +33,7 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
   const fetchRankings = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data } = await api.get(`/organizations/${player?.org}/players'`) await supabase
         .from('players')
         .select(`
           id,
