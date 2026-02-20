@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlayerStats } from '../../../services/supabase.ts';
+import { PlayerStats } from '../../../services/axios.ts';
 
 interface MiniStatsModalProps {
   isOpen: boolean;

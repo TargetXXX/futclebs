@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player, PlayerStats } from '../services/supabase';
+import { Player, PlayerStats } from '../services/axios';
 import { PlayerStatsModal } from './modals/player/PlayerStatsModal.tsx';
 import { MatchPlayersModal } from './modals/match/MatchPlayersModal.tsx';
 import { MiniStatsModal } from './modals/player/MiniStatsModal.tsx';

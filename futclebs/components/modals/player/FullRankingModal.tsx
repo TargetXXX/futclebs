@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { PlayerStats } from '../../../services/supabase.ts';
+import { PlayerStats } from '../../../services/axios.ts';
 
 interface RankingPlayer {
   id: string;

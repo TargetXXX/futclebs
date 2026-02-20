@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Player } from '../services/supabase';
+import { Player } from '../services/axios';
 
 export const useDashboardHandlers = (
   userProfile: Player | null,
