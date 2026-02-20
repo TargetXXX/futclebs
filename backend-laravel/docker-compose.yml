@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: php:8.2-fpm
+    container_name: bolanope_app
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    depends_on:
+      - postgres
+    networks:
+      - bolanope
+
+  nginx:
+    image: nginx:alpine
+    container_name: bolanope_nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    depends_on:
+      - app
+    networks:
+      - bolanope
+
+  postgres:
+    image: postgres:15
+    container_name: bolanope_postgres
+    environment:
+      POSTGRES_DB: bolanope
+      POSTGRES_USER: menines
+      POSTGRES_PASSWORD: Menines@123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bolanope
+
+networks:
+  bolanope:
+
+volumes:
+  postgres_data:
