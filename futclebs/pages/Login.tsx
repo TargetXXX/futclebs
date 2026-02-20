@@ -2,6 +2,7 @@ import { AuthCard } from "@/components/auth/AuthCard";
 import { api } from "@/services/axios";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { FormEvent } from "react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: FormDataEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
 
     setLoading(true);
@@ -24,10 +25,10 @@ export default function Login() {
         password,
       });
 
-      const { token, user } = response.data;
+      const { token, player } = response.data;
 
       localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("user", JSON.stringify(player));
 
       navigate("/dashboard");
     } catch (err: any) {
@@ -41,10 +42,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4">
-      <AuthCard
-        title="Bem-vindo de volta"
-        subtitle="Entre na sua conta para acessar suas organizações e partidas"
-      >
+      <AuthCard title="Bem-vindo de volta" subtitle="Acesse sua conta e continue dominando o ranking." >
         <form onSubmit={handleLogin} className="space-y-4">
           {/* Email */}
           <div>
