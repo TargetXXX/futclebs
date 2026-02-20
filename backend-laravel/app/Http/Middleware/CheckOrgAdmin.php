@@ -27,8 +27,14 @@ class CheckOrgAdmin
 
         $organizationId = null;
 
-        if ($team = $request->route('team'))
-            $organizationId = $team->organization_id;
+        if ($team = $request->route('team')) {
+            $organizationId = is_object($team) ? $team->organization_id : null;
+        }
+
+        if (!$organizationId) {
+            $organization = $request->route('organization');
+            $organizationId = is_object($organization) ? $organization->id : (is_numeric($organization) ? (int) $organization : null);
+        }
 
         if (!$organizationId)
             $organizationId = $request->input('organization_id');

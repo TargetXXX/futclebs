@@ -27,12 +27,19 @@ class CheckOrg
 
         $organizationId = null;
 
-        if ($tournament = $request->route('tournament'))
-            $organizationId = $tournament->organization_id;
+        if ($tournament = $request->route('tournament')) {
+            $organizationId = is_object($tournament) ? $tournament->organization_id : null;
+        }
 
 
-        if ($match = $request->route('match'))
-            $organizationId = $match->organization_id;
+        if ($match = $request->route('match')) {
+            $organizationId = is_object($match) ? $match->organization_id : null;
+        }
+
+        if (!$organizationId) {
+            $organization = $request->route('organization');
+            $organizationId = is_object($organization) ? $organization->id : (is_numeric($organization) ? (int) $organization : null);
+        }
 
         if (!$organizationId)
             $organizationId = $request->input('organization_id');

@@ -4,12 +4,14 @@ import OrganizationDashboard from "./pages/OrganizationDashboard";
 import DashboardHome from "./pages/DashboardHome";
 import Login from "./pages/Login";
 import JoinOrganization from "./pages/JoinOrganization";
+import Register from "./pages/Register";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
         <Route
           path="/dashboard"

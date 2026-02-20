@@ -28,13 +28,27 @@ interface TournamentData {
 interface OrganizationPlayer {
   id: number;
   name: string;
+  email?: string;
+  username?: string;
   avatar?: string | null;
   primary_position?: string | null;
+  secondary_position?: string | null;
+  birthdate?: string | null;
+  gender?: string | null;
+  status?: string | null;
+  is_goalkeeper?: boolean;
   goals_total?: number;
   assists_total?: number;
   pivot?: {
     is_admin?: boolean;
     overall?: number;
+    velocidade?: number;
+    finalizacao?: number;
+    passe?: number;
+    drible?: number;
+    defesa?: number;
+    fisico?: number;
+    esportividade?: number;
   };
 }
 
@@ -85,6 +99,18 @@ export default function OrganizationDashboard() {
 
   const [rankingSearch, setRankingSearch] = useState("");
   const [rankingPositionFilter, setRankingPositionFilter] = useState("all");
+  const [selectedPlayer, setSelectedPlayer] = useState<OrganizationPlayer | null>(null);
+
+  const formatDateForApi = (dateValue: string) => {
+    if (!dateValue) return "";
+    return `${dateValue} 20:00:00`;
+  };
+
+  const formatDateTimeLabel = (dateValue: string) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "Data inválida";
+    return date.toLocaleString("pt-BR");
+  };
 
   const fetchDashboardData = async () => {
     if (!orgId) return;
@@ -208,12 +234,13 @@ export default function OrganizationDashboard() {
       await api.post("/matches", {
         organization_id: Number(orgId),
         name: newMatchName.trim() || "Rachão Futclebs",
-        match_date: newMatchDate,
+        match_date: formatDateForApi(newMatchDate),
         tournament_id: newMatchTournamentId === "none" ? null : Number(newMatchTournamentId),
       });
 
       setFeedback("Partida criada com sucesso.");
       setNewMatchDate("");
+      setNewMatchName("Pelada Futclebs");
       setNewMatchTournamentId("none");
       setIsCreateMatchOpen(false);
       await fetchDashboardData();
@@ -299,14 +326,20 @@ export default function OrganizationDashboard() {
 
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={() => setIsCreateTournamentOpen(true)}
+              onClick={() => {
+                setIsCreateMatchOpen(false);
+                setIsCreateTournamentOpen(true);
+              }}
               disabled={!isAdmin}
               className="px-5 py-3 rounded-2xl bg-[#12305f] border border-[#27467a] text-white font-black uppercase text-xs disabled:opacity-40"
             >
               Criar torneio
             </button>
             <button
-              onClick={() => setIsCreateMatchOpen(true)}
+              onClick={() => {
+                setIsCreateTournamentOpen(false);
+                setIsCreateMatchOpen(true);
+              }}
               disabled={!isAdmin}
               className="px-5 py-3 rounded-2xl bg-emerald-500 text-[#021125] font-black uppercase text-xs disabled:opacity-40"
             >
@@ -397,7 +430,7 @@ export default function OrganizationDashboard() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div>
                         <p className="font-bold text-lg">{match.name || "Pelada Futclebs"}</p>
-                        <p className="text-sm text-[#6f84ad]">{new Date(match.match_date).toLocaleString("pt-BR")}</p>
+                        <p className="text-sm text-[#6f84ad]">{formatDateTimeLabel(match.match_date)}</p>
                         {tournamentName && (
                           <p className="text-xs text-emerald-300 uppercase tracking-wider mt-1">Torneio: {tournamentName}</p>
                         )}
@@ -456,7 +489,8 @@ export default function OrganizationDashboard() {
                 {topThreePlayers.map((player, index) => (
                   <article
                     key={player.id}
-                    className="rounded-2xl border border-[#1f3358] bg-gradient-to-b from-[#0d2249] to-[#081731] p-4"
+                    onClick={() => setSelectedPlayer(player)}
+                    className="rounded-2xl border border-[#1f3358] bg-gradient-to-b from-[#0d2249] to-[#081731] p-4 cursor-pointer hover:border-emerald-400/40 transition"
                   >
                     <p className="text-xs uppercase tracking-[0.2em] text-[#89a4d3]">#{index + 1} Lugar</p>
                     <p className="mt-2 text-lg font-bold">{player.name}</p>
@@ -492,7 +526,8 @@ export default function OrganizationDashboard() {
                 {restOfRanking.map((player, index) => (
                   <article
                     key={player.id}
-                    className="rounded-2xl border border-[#1f3358] bg-[#04173b] px-4 py-3 flex items-center justify-between"
+                    onClick={() => setSelectedPlayer(player)}
+                    className="rounded-2xl border border-[#1f3358] bg-[#04173b] px-4 py-3 flex items-center justify-between cursor-pointer hover:border-emerald-400/40 transition"
                   >
                     <div>
                       <p className="font-semibold">#{index + 4} {player.name}</p>
@@ -535,12 +570,50 @@ export default function OrganizationDashboard() {
         </section>
       </div>
 
+      {selectedPlayer && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-3xl bg-gradient-to-b from-[#0b1f47] to-[#06122a] border border-[#2a4676] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-[#8ca4ce]">Card do Jogador</p>
+                <h3 className="text-2xl font-black mt-1">{selectedPlayer.name}</h3>
+                <p className="text-sm text-[#91a7d0]">{selectedPlayer.primary_position || "Linha"} • OVR {selectedPlayer.pivot?.overall ?? 0}</p>
+              </div>
+              <button onClick={() => setSelectedPlayer(null)} className="text-slate-200 text-xl">✕</button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 mt-5">
+              <div className="rounded-2xl bg-[#031131] border border-[#1f3358] p-4 space-y-1 text-sm">
+                <p><span className="text-[#7d95c1]">Email:</span> {selectedPlayer.email || "-"}</p>
+                <p><span className="text-[#7d95c1]">Usuário:</span> {selectedPlayer.username || "-"}</p>
+                <p><span className="text-[#7d95c1]">Posição secundária:</span> {selectedPlayer.secondary_position || "-"}</p>
+                <p><span className="text-[#7d95c1]">Gênero:</span> {selectedPlayer.gender || "-"}</p>
+                <p><span className="text-[#7d95c1]">Nascimento:</span> {selectedPlayer.birthdate ? new Date(selectedPlayer.birthdate).toLocaleDateString("pt-BR") : "-"}</p>
+                <p><span className="text-[#7d95c1]">Status:</span> {selectedPlayer.status || "-"}</p>
+              </div>
+
+              <div className="rounded-2xl bg-[#031131] border border-[#1f3358] p-4 grid grid-cols-2 gap-2 text-sm">
+                <p className="text-emerald-300">⚽ Gols: {selectedPlayer.goals_total ?? 0}</p>
+                <p className="text-blue-300">🅰️ Assist.: {selectedPlayer.assists_total ?? 0}</p>
+                <p>🏃 Vel: {selectedPlayer.pivot?.velocidade ?? 0}</p>
+                <p>🎯 Final: {selectedPlayer.pivot?.finalizacao ?? 0}</p>
+                <p>🧠 Passe: {selectedPlayer.pivot?.passe ?? 0}</p>
+                <p>🪄 Drible: {selectedPlayer.pivot?.drible ?? 0}</p>
+                <p>🛡️ Defesa: {selectedPlayer.pivot?.defesa ?? 0}</p>
+                <p>💪 Físico: {selectedPlayer.pivot?.fisico ?? 0}</p>
+                <p className="col-span-2">🤝 Esportividade: {selectedPlayer.pivot?.esportividade ?? 0}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(isCreateMatchOpen || isCreateTournamentOpen) && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-lg rounded-3xl bg-[#071632] border border-[#203760] p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-black uppercase tracking-wider">
-                {isCreateMatchOpen ? "Criar Partida" : "Criar Torneio"}
+                Criar competição
               </h3>
               <button
                 onClick={() => {
@@ -553,6 +626,33 @@ export default function OrganizationDashboard() {
               </button>
             </div>
 
+            <div className="grid grid-cols-2 gap-2 mb-5 rounded-2xl bg-[#031131] border border-[#1b2f57] p-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreateMatchOpen(true);
+                  setIsCreateTournamentOpen(false);
+                }}
+                className={`rounded-xl py-2 text-xs font-black uppercase tracking-wider ${
+                  isCreateMatchOpen ? "bg-emerald-500 text-[#021125]" : "text-[#7a8cb2]"
+                }`}
+              >
+                Partida
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCreateMatchOpen(false);
+                  setIsCreateTournamentOpen(true);
+                }}
+                className={`rounded-xl py-2 text-xs font-black uppercase tracking-wider ${
+                  isCreateTournamentOpen ? "bg-[#4d9cff] text-[#021125]" : "text-[#7a8cb2]"
+                }`}
+              >
+                Torneio
+              </button>
+            </div>
+
             {isCreateMatchOpen && (
               <form onSubmit={submitCreateMatch} className="space-y-4">
                 <input
@@ -562,10 +662,11 @@ export default function OrganizationDashboard() {
                   placeholder="Nome da partida"
                 />
                 <input
-                  type="datetime-local"
+                  type="date"
                   value={newMatchDate}
                   onChange={(event) => setNewMatchDate(event.target.value)}
                   className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
+                  min={new Date().toISOString().split("T")[0]}
                   required
                 />
                 <select
@@ -613,6 +714,7 @@ export default function OrganizationDashboard() {
                   value={newTournamentStartDate}
                   onChange={(event) => setNewTournamentStartDate(event.target.value)}
                   className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
+                  min={new Date().toISOString().split("T")[0]}
                 />
 
                 <button
