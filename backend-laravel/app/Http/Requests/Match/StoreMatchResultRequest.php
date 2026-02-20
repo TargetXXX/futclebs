@@ -22,6 +22,16 @@ class StoreMatchResultRequest extends FormRequest
 
             'players_team_b' => ['required', 'array'],
             'players_team_b.*' => ['integer', 'exists:players,id'],
+
+            'scorers' => ['sometimes', 'array'],
+            'scorers.*.player_id' => ['required_with:scorers', 'integer', 'exists:players,id'],
+            'scorers.*.team' => ['required_with:scorers', 'in:A,B'],
+            'scorers.*.goals' => ['required_with:scorers', 'integer', 'min:0'],
+
+            'assists' => ['sometimes', 'array'],
+            'assists.*.player_id' => ['required_with:assists', 'integer', 'exists:players,id'],
+            'assists.*.team' => ['required_with:assists', 'in:A,B'],
+            'assists.*.assists' => ['required_with:assists', 'integer', 'min:0'],
         ];
     }
 }

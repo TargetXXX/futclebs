@@ -4,10 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use MatchComment;
-use MatchResult;
-use Team;
-use Tournament;
 
 class MatchModel extends Model
 {
@@ -85,7 +81,7 @@ class MatchModel extends Model
     public function players()
     {
         return $this->belongsToMany(Player::class, 'match_players')
-            ->withPivot(['is_goalkeeper', 'team'])
+            ->withPivot(['is_goalkeeper', 'team', 'goals', 'assists', 'minutes_played', 'yellow_cards', 'red_cards'])
             ->withTimestamps();
     }
 

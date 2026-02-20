@@ -11,12 +11,14 @@ interface Props {
 
 interface PlayerOption { id: number; name: string; }
 
-export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, onRefresh }) => {
+export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, currentUserId, onRefresh }) => {
   const [players, setPlayers] = useState<PlayerOption[]>([]);
   const [targetPlayerId, setTargetPlayerId] = useState<number | null>(null);
   const [stats, setStats] = useState<Omit<PlayerStats,'player_id'|'overall'>>({
     velocidade: 5, finalizacao: 5, passe: 5, drible: 5, defesa: 5, esportividade: 5, fisico: 5,
   });
+  const [error, setError] = useState<string | null>(null);
+  const votablePlayers = players.filter((p) => String(p.id) !== String(currentUserId));
 
   useEffect(() => {
     const load = async () => {
@@ -29,9 +31,14 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, onR
 
   const submit = async () => {
     if (!targetPlayerId) return;
-    await api.post(`/matches/${matchId}/votes`, { target_player_id: targetPlayerId, ...stats });
-    onRefresh();
-    onClose();
+    setError(null);
+    try {
+      await api.post(`/matches/${matchId}/votes`, { target_player_id: targetPlayerId, ...stats });
+      onRefresh();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Não foi possível registrar seu voto.");
+    }
   };
 
   if (!isOpen) return null;
@@ -42,8 +49,9 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, onR
         <h2 className="text-white font-bold">Votar jogador</h2>
         <select className="w-full bg-slate-800 p-2 rounded" onChange={(e) => setTargetPlayerId(Number(e.target.value))}>
           <option value="">Selecione</option>
-          {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {votablePlayers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
+        {error && <p className="text-red-400 text-xs">{error}</p>}
         {Object.keys(stats).map((k) => (
           <div key={k} className="flex items-center justify-between text-sm text-white">
             <span>{k}</span>

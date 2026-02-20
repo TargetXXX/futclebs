@@ -14,6 +14,7 @@ class MatchResource extends JsonResource
             'name' => $this->name,
             'match_date' => $this->match_date,
             'status' => $this->status,
+            'players_count' => $this->whenCounted('players'),
 
             'organization' => new OrganizationResource($this->whenLoaded('organization')),
 

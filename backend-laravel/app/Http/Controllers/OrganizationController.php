@@ -46,7 +46,20 @@ class OrganizationController extends Controller
     public function show(Organization $organization)
     {
 
-        $organization->load(['players', 'matches', 'tournaments']);
+        $organization->load([
+            'players' => function ($query) use ($organization) {
+                $query
+                    ->withPivot(['is_admin', 'velocidade', 'finalizacao', 'passe', 'drible', 'defesa', 'fisico', 'esportividade', 'overall'])
+                    ->withSum(['matches as goals_total' => function ($matchQuery) use ($organization) {
+                        $matchQuery->where('matches.organization_id', $organization->id);
+                    }], 'match_players.goals')
+                    ->withSum(['matches as assists_total' => function ($matchQuery) use ($organization) {
+                        $matchQuery->where('matches.organization_id', $organization->id);
+                    }], 'match_players.assists');
+            },
+            'matches',
+            'tournaments'
+        ]);
 
         return OrganizationResource::make($organization);
     }

@@ -1,6 +1,7 @@
 <?php
+
 namespace App\Http\Controllers;
-use App\Http\Controllers\Controller;
+
 use App\Http\Requests\MatchResult\StoreMatchResultRequest;
 use App\Http\Requests\MatchResult\UpdateMatchResultRequest;
 use App\Models\MatchModel;
