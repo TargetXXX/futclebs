@@ -94,8 +94,8 @@ export default function OrganizationDashboard() {
       const [orgResponse, meResponse, tournamentsResponse, matchesResponse] = await Promise.all([
         api.get(`/organizations/${orgId}`),
         api.get("/auth/me"),
-        api.get(`/organizations/${orgId}/tournaments`),
-        api.get(`/organizations/${orgId}/matches`),
+        api.get(`/organizations/${orgId}/tournaments`, { params: { organization_id: orgId } }),
+        api.get(`/organizations/${orgId}/matches`, { params: { organization_id: orgId } }),
       ]);
 
       const orgPayload = orgResponse.data?.data ?? orgResponse.data;

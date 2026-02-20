@@ -9,12 +9,7 @@ class MatchService
 {
     public function getByOrganization(int $organizationId): Collection
     {
-        return MatchModel::query()
-            ->where('organization_id', $organizationId)
-            ->with(['tournament', 'teamA', 'teamB', 'result'])
-            ->withCount('players')
-            ->latest('match_date')
-            ->get();
+        return MatchModel::where('organization_id', $organizationId)->get();
     }
 
     public function create(array $data): MatchModel
