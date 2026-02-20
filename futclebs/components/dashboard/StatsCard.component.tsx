@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player, PlayerStats } from '../../services/supabase.ts';
+import { Player, PlayerStats } from '../../services/axios.ts';
 
 interface StatsCardProps {
   userProfile: Player;

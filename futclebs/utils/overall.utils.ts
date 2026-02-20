@@ -1,4 +1,4 @@
-import { Player, PlayerPosition } from "@/services/supabase";
+import { Player, PlayerPosition } from "@/services/axios";
 
 export const calculateByPosition = (player: Player, stats: any) =>  {
 

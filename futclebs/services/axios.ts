@@ -1,4 +1,3 @@
-import { User } from "@supabase/supabase-js";
 import axios from "axios";
 
 export const api = axios.create({
