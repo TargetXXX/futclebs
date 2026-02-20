@@ -2,7 +2,8 @@
 
 namespace App\Services;
 
-use Tournament;
+use App\Models\Tournament;
+
 
 
 class TournamentService

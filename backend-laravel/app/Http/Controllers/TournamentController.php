@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Tournament\StoreTournamentRequest;
 use App\Http\Requests\Tournament\UpdateTournamentRequest;
 use App\Http\Resources\TournamentResource;
-use Tournament;
 
+use App\Models\Tournament;
 use App\Services\TournamentService;
 
 class TournamentController extends Controller
