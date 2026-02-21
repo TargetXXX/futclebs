@@ -2,7 +2,7 @@ import { api } from "@/services/axios";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Input, Progress, Select, Spin, Switch, Tag, Tooltip } from "antd";
-import { StarFilled, StarOutlined, ReloadOutlined, AppstoreOutlined, UnorderedListOutlined, SearchOutlined, TrophyOutlined, FilterOutlined } from "@ant-design/icons";
+import { StarFilled, StarOutlined, ReloadOutlined, AppstoreOutlined, UnorderedListOutlined, SearchOutlined, TrophyOutlined, FilterOutlined, ThunderboltOutlined, RocketOutlined } from "@ant-design/icons";
 import JoinOrganizationModal from "@/components/modals/organization/JoinOrganizationModal";
 import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
 
@@ -19,6 +19,7 @@ type ViewMode = "grid" | "list";
 
 const FAVORITES_STORAGE_KEY = "futclebs.favorite.orgs";
 const DASHBOARD_PREFS_STORAGE_KEY = "futclebs.dashboard.prefs";
+const RECENT_ORGS_STORAGE_KEY = "futclebs.recent.orgs";
 
 export default function DashboardHome() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -31,6 +32,8 @@ export default function DashboardHome() {
   const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [favorites, setFavorites] = useState<number[]>([]);
+  const [claimedMissionIds, setClaimedMissionIds] = useState<number[]>([]);
+  const [recentOrganizations, setRecentOrganizations] = useState<number[]>([]);
 
   const navigate = useNavigate();
 
@@ -48,6 +51,13 @@ export default function DashboardHome() {
       if (parsedPrefs?.viewMode) setViewMode(parsedPrefs.viewMode);
       if (typeof parsedPrefs?.adminsOnly === "boolean") setAdminsOnly(parsedPrefs.adminsOnly);
       if (typeof parsedPrefs?.onlyFavorites === "boolean") setOnlyFavorites(parsedPrefs.onlyFavorites);
+      if (Array.isArray(parsedPrefs?.claimedMissionIds)) setClaimedMissionIds(parsedPrefs.claimedMissionIds);
+
+      const rawRecentOrgs = localStorage.getItem(RECENT_ORGS_STORAGE_KEY);
+      const parsedRecent = rawRecentOrgs ? JSON.parse(rawRecentOrgs) : [];
+      if (Array.isArray(parsedRecent)) {
+        setRecentOrganizations(parsedRecent.filter((item) => typeof item === "number"));
+      }
     } catch (error) {
       console.error("Erro ao carregar preferências do dashboard:", error);
     }
@@ -58,11 +68,15 @@ export default function DashboardHome() {
   }, [favorites]);
 
   useEffect(() => {
+    localStorage.setItem(RECENT_ORGS_STORAGE_KEY, JSON.stringify(recentOrganizations));
+  }, [recentOrganizations]);
+
+  useEffect(() => {
     localStorage.setItem(
       DASHBOARD_PREFS_STORAGE_KEY,
-      JSON.stringify({ sortOption, viewMode, adminsOnly, onlyFavorites }),
+      JSON.stringify({ sortOption, viewMode, adminsOnly, onlyFavorites, claimedMissionIds }),
     );
-  }, [sortOption, viewMode, adminsOnly, onlyFavorites]);
+  }, [sortOption, viewMode, adminsOnly, onlyFavorites, claimedMissionIds]);
 
   const fetchMyOrgs = useCallback(async () => {
     setLoading(true);
@@ -92,6 +106,11 @@ export default function DashboardHome() {
     setSortOption("overall-desc");
     setAdminsOnly(false);
     setOnlyFavorites(false);
+  };
+
+  const openOrganization = (orgId: number) => {
+    setRecentOrganizations((current) => [orgId, ...current.filter((id) => id !== orgId)].slice(0, 5));
+    navigate(`/dashboard/org/${orgId}`);
   };
 
   const filteredOrganizations = useMemo(() => {
@@ -146,6 +165,44 @@ export default function DashboardHome() {
     )[0];
   }, [organizations]);
 
+  const recentOrganizationNames = useMemo(
+    () => recentOrganizations
+      .map((id) => organizations.find((org) => org.id === id)?.name)
+      .filter(Boolean)
+      .slice(0, 3) as string[],
+    [organizations, recentOrganizations],
+  );
+
+  const openRandomOrganization = () => {
+    if (!filteredOrganizations.length) return;
+    const randomOrg = filteredOrganizations[Math.floor(Math.random() * filteredOrganizations.length)];
+    openOrganization(randomOrg.id);
+  };
+
+  const progressMissions = useMemo(
+    () => [
+      {
+        id: 1,
+        title: "Scout em Ação",
+        subtitle: "Tenha ao menos 3 organizações favoritas",
+        progress: Math.min(100, Math.round((favorites.length / 3) * 100)),
+      },
+      {
+        id: 2,
+        title: "Gestor Pro",
+        subtitle: "Seja admin em 2 organizações",
+        progress: Math.min(100, Math.round((dashboardStats.adminCount / 2) * 100)),
+      },
+      {
+        id: 3,
+        title: "Elite",
+        subtitle: "Mantenha média geral acima de 80 OVR",
+        progress: Math.min(100, Math.round((dashboardStats.avgOverall / 80) * 100)),
+      },
+    ],
+    [favorites.length, dashboardStats.adminCount, dashboardStats.avgOverall],
+  );
+
   const renderOrganizationCard = (org: Organization) => {
     const isFavorite = favorites.includes(org.id);
     const overall = org.stats?.overall ?? 0;
@@ -154,7 +211,7 @@ export default function DashboardHome() {
       return (
         <div
           key={org.id}
-          onClick={() => navigate(`/dashboard/org/${org.id}`)}
+          onClick={() => openOrganization(org.id)}
           className="cursor-pointer bg-slate-900/70 border border-slate-800 rounded-2xl p-5 hover:border-emerald-500/40 transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
           <div>
@@ -162,6 +219,7 @@ export default function DashboardHome() {
               <h3 className="text-lg font-semibold">{org.name}</h3>
               {org.is_admin && <Tag color="gold">ADMIN</Tag>}
               {isFavorite && <Tag color="purple">FAVORITA</Tag>}
+              {recentOrganizations.includes(org.id) && <Tag color="blue">RECENTE</Tag>}
             </div>
             <p className="text-slate-400 text-sm max-w-2xl">{org.description || "Sem descrição disponível."}</p>
           </div>
@@ -188,8 +246,8 @@ export default function DashboardHome() {
     return (
       <div
         key={org.id}
-        onClick={() => navigate(`/dashboard/org/${org.id}`)}
-        className="cursor-pointer bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group"
+        onClick={() => openOrganization(org.id)}
+        className="cursor-pointer bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300 group"
       >
         <div className="flex justify-between items-start mb-4 gap-2">
           <div className="space-y-2">
@@ -197,6 +255,7 @@ export default function DashboardHome() {
             <div className="flex gap-2 flex-wrap">
               {org.is_admin && <Tag color="gold">ADMIN</Tag>}
               {favorites.includes(org.id) && <Tag color="purple">FAVORITA</Tag>}
+              {recentOrganizations.includes(org.id) && <Tag color="blue">RECENTE</Tag>}
             </div>
           </div>
 
@@ -253,8 +312,20 @@ export default function DashboardHome() {
             <Button onClick={fetchMyOrgs} className="rounded-2xl" icon={<ReloadOutlined />}>
               Atualizar
             </Button>
+            <Button onClick={openRandomOrganization} className="rounded-2xl" disabled={!filteredOrganizations.length}>
+              🎲 Surpreenda-me
+            </Button>
           </div>
         </div>
+
+        {recentOrganizationNames.length > 0 && (
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-2 flex-wrap">
+            <span className="text-slate-300 text-sm">Últimas visitadas:</span>
+            {recentOrganizationNames.map((name) => (
+              <Tag key={name} color="blue">{name}</Tag>
+            ))}
+          </div>
+        )}
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
@@ -284,6 +355,45 @@ export default function DashboardHome() {
             <Tag color="green">Overall {strongestOrganization.stats?.overall ?? 0}</Tag>
           </div>
         )}
+
+        <div className="grid lg:grid-cols-3 gap-4">
+          {progressMissions.map((mission) => {
+            const isDone = mission.progress >= 100;
+            const isClaimed = claimedMissionIds.includes(mission.id);
+
+            return (
+              <div
+                key={mission.id}
+                className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-400/30"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-slate-100">{mission.title}</h3>
+                    <p className="text-xs text-slate-400 mt-1">{mission.subtitle}</p>
+                  </div>
+                  {isDone ? <RocketOutlined className="text-cyan-300" /> : <ThunderboltOutlined className="text-amber-300" />}
+                </div>
+
+                <Progress
+                  className="mt-3"
+                  percent={mission.progress}
+                  strokeColor={isDone ? "#22d3ee" : "#34d399"}
+                  trailColor="#1f2937"
+                />
+
+                <Button
+                  className="mt-2"
+                  block
+                  type={isDone && !isClaimed ? "primary" : "default"}
+                  disabled={!isDone || isClaimed}
+                  onClick={() => setClaimedMissionIds((current) => [...current, mission.id])}
+                >
+                  {isClaimed ? "Recompensa resgatada" : isDone ? "Resgatar recompensa" : "Complete a missão"}
+                </Button>
+              </div>
+            );
+          })}
+        </div>
 
         <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-4">
           <div className="flex items-center gap-2 text-slate-300"><FilterOutlined /> Filtros inteligentes</div>

@@ -1,9 +1,44 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "@/services/axios";
+import {
+  Avatar,
+  Button,
+  Card,
+  Col,
+  Divider,
+  Drawer,
+  Empty,
+  Input,
+  List,
+  message,
+  Modal,
+  Progress,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Tag,
+  Typography,
+} from "antd";
+import {
+  CalendarOutlined,
+  AimOutlined,
+  BarChartOutlined,
+  CommentOutlined,
+  FireOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SendOutlined,
+  TeamOutlined,
+  TrophyOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 
 type MatchStatus = "open" | "in_progress" | "finished";
-type DashboardTab = "open" | "pending" | "finished" | "ranking";
+type DashboardTab = "open" | "pending" | "finished" | "ranking" | "tournaments";
 type TournamentType = "league" | "knockout";
 
 interface MatchData {
@@ -14,6 +49,14 @@ interface MatchData {
   tournament_id?: number | null;
   players_count?: number;
   has_pending_votes?: boolean;
+}
+
+interface MatchComment {
+  id: number;
+  content: string;
+  player_id: number;
+  created_at: string;
+  player?: { id: number; name: string; avatar?: string | null };
 }
 
 interface TournamentData {
@@ -36,7 +79,6 @@ interface OrganizationPlayer {
   birthdate?: string | null;
   gender?: string | null;
   status?: string | null;
-  is_goalkeeper?: boolean;
   goals_total?: number;
   assists_total?: number;
   pivot?: {
@@ -64,16 +106,12 @@ interface AuthUser {
   name: string;
 }
 
-const tabs: { key: DashboardTab; label: string }[] = [
-  { key: "open", label: "Abertas" },
-  { key: "pending", label: "Votar" },
-  { key: "finished", label: "Histórico" },
-  { key: "ranking", label: "Ranking" },
-];
+const { Title, Text } = Typography;
 
 export default function OrganizationDashboard() {
   const navigate = useNavigate();
   const { orgId } = useParams();
+  const [messageApi, contextHolder] = message.useMessage();
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DashboardTab>("open");
@@ -85,14 +123,10 @@ export default function OrganizationDashboard() {
   const [isCreateMatchOpen, setIsCreateMatchOpen] = useState(false);
   const [isCreateTournamentOpen, setIsCreateTournamentOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [adminMatchId, setAdminMatchId] = useState<number | null>(null);
 
   const [newMatchDate, setNewMatchDate] = useState("");
   const [newMatchName, setNewMatchName] = useState("Pelada Futclebs");
   const [newMatchTournamentId, setNewMatchTournamentId] = useState<string>("none");
-
   const [newTournamentName, setNewTournamentName] = useState("");
   const [newTournamentType, setNewTournamentType] = useState<TournamentType>("league");
   const [newTournamentStartDate, setNewTournamentStartDate] = useState("");
@@ -101,10 +135,19 @@ export default function OrganizationDashboard() {
   const [rankingPositionFilter, setRankingPositionFilter] = useState("all");
   const [selectedPlayer, setSelectedPlayer] = useState<OrganizationPlayer | null>(null);
 
-  const formatDateForApi = (dateValue: string) => {
-    if (!dateValue) return "";
-    return `${dateValue} 20:00:00`;
-  };
+  const [commentsModalMatch, setCommentsModalMatch] = useState<MatchData | null>(null);
+  const [comments, setComments] = useState<MatchComment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [commentsLoading, setCommentsLoading] = useState(false);
+
+  const [lineupMatch, setLineupMatch] = useState<MatchData | null>(null);
+  const [lineupPlayers, setLineupPlayers] = useState<OrganizationPlayer[]>([]);
+  const [teamAIds, setTeamAIds] = useState<number[]>([]);
+  const [teamBIds, setTeamBIds] = useState<number[]>([]);
+  const [lineupLoading, setLineupLoading] = useState(false);
+  const [clubEnergy, setClubEnergy] = useState(72);
+
+  const formatDateForApi = (dateValue: string) => (dateValue ? `${dateValue} 20:00:00` : "");
 
   const formatDateTimeLabel = (dateValue: string) => {
     const date = new Date(dateValue);
@@ -114,7 +157,6 @@ export default function OrganizationDashboard() {
 
   const fetchDashboardData = async () => {
     if (!orgId) return;
-
     setLoading(true);
     try {
       const [orgResponse, meResponse, tournamentsResponse, matchesResponse] = await Promise.all([
@@ -129,12 +171,7 @@ export default function OrganizationDashboard() {
       const tournamentsPayload = tournamentsResponse.data?.data ?? tournamentsResponse.data ?? [];
       const matchesPayload = matchesResponse.data?.data ?? matchesResponse.data ?? [];
 
-      setOrganization(orgPayload);
-      setUser(mePayload);
-      setTournaments(tournamentsPayload as TournamentData[]);
-
       const finishedMatches = (matchesPayload as MatchData[]).filter((match) => match.status === "finished");
-
       const voteStatusEntries = await Promise.all(
         finishedMatches.map(async (match) => {
           try {
@@ -143,19 +180,21 @@ export default function OrganizationDashboard() {
           } catch {
             return [match.id, false] as const;
           }
-        })
+        }),
       );
 
       const pendingByMatchId = new Map<number, boolean>(voteStatusEntries);
-
       const normalizedMatches = (matchesPayload as MatchData[]).map((match) => ({
         ...match,
         has_pending_votes: pendingByMatchId.get(match.id) ?? false,
       }));
 
+      setOrganization(orgPayload);
+      setUser(mePayload);
+      setTournaments(tournamentsPayload as TournamentData[]);
       setMatches(normalizedMatches);
-    } catch (fetchError) {
-      console.error("Erro ao carregar dashboard da organização", fetchError);
+    } catch (error) {
+      console.error("Erro ao carregar dashboard da organização", error);
       setOrganization(null);
       setMatches([]);
       setTournaments([]);
@@ -170,66 +209,164 @@ export default function OrganizationDashboard() {
 
   const userOnOrg = useMemo(
     () => organization?.players?.find((player) => player.id === user?.id),
-    [organization?.players, user?.id]
+    [organization?.players, user?.id],
   );
 
   const userOverall = userOnOrg?.pivot?.overall ?? 0;
   const isAdmin = Boolean(userOnOrg?.pivot?.is_admin);
 
-  const openMatches = matches.filter((match) => match.status === "open" || match.status === "in_progress");
-  const finishedMatches = matches.filter((match) => match.status === "finished");
+  const openMatches = useMemo(() => matches.filter((match) => match.status !== "finished"), [matches]);
+  const finishedMatches = useMemo(() => matches.filter((match) => match.status === "finished"), [matches]);
+  const pendingMatches = useMemo(
+    () => matches.filter((match) => match.status === "finished" && match.has_pending_votes),
+    [matches],
+  );
+
+  const dynamicHighlights = useMemo(
+    () => [
+      {
+        title: "Ritmo da Semana",
+        value: `${openMatches.length} jogos abertos`,
+        tone: "bg-cyan-500/10 border-cyan-400/20 text-cyan-200",
+      },
+      {
+        title: "Engajamento",
+        value: `${pendingMatches.length} votações pendentes`,
+        tone: "bg-amber-500/10 border-amber-400/20 text-amber-200",
+      },
+      {
+        title: "Elenco Ativo",
+        value: `${organization?.players?.length ?? 0} jogadores`,
+        tone: "bg-emerald-500/10 border-emerald-400/20 text-emerald-200",
+      },
+    ],
+    [openMatches.length, pendingMatches.length, organization?.players?.length],
+  );
 
   const rankingPlayers = useMemo(() => {
     const players = [...(organization?.players ?? [])];
-
     return players
       .filter((player) => {
         const matchesSearch = player.name.toLowerCase().includes(rankingSearch.toLowerCase());
         const matchesPosition =
           rankingPositionFilter === "all" ||
           (player.primary_position ?? "Linha").toLowerCase() === rankingPositionFilter.toLowerCase();
-
         return matchesSearch && matchesPosition;
       })
       .sort((a, b) => (b.pivot?.overall ?? 0) - (a.pivot?.overall ?? 0));
   }, [organization?.players, rankingSearch, rankingPositionFilter]);
 
-  const topThreePlayers = rankingPlayers.slice(0, 3);
-  const restOfRanking = rankingPlayers.slice(3);
+  const openCommentsModal = async (match: MatchData) => {
+    setCommentsModalMatch(match);
+    setCommentsLoading(true);
+    try {
+      const { data } = await api.get(`/matches/${match.id}/comments`);
+      setComments(data || []);
+    } catch {
+      messageApi.error("Não foi possível carregar os comentários.");
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
 
-  const topScorers = useMemo(
-    () => [...(organization?.players ?? [])].sort((a, b) => (b.goals_total ?? 0) - (a.goals_total ?? 0)).slice(0, 5),
-    [organization?.players]
-  );
+  const addComment = async () => {
+    if (!commentsModalMatch || !newComment.trim()) return;
+    try {
+      await api.post(`/matches/${commentsModalMatch.id}/comments`, { content: newComment.trim() });
+      setNewComment("");
+      setClubEnergy((current) => Math.min(100, current + 3));
+      await openCommentsModal(commentsModalMatch);
+    } catch {
+      messageApi.error("Falha ao enviar comentário.");
+    }
+  };
 
-  const topAssisters = useMemo(
-    () => [...(organization?.players ?? [])].sort((a, b) => (b.assists_total ?? 0) - (a.assists_total ?? 0)).slice(0, 5),
-    [organization?.players]
-  );
+  const deleteComment = async (commentId: number) => {
+    try {
+      await api.delete(`/comments/${commentId}`);
+      if (commentsModalMatch) await openCommentsModal(commentsModalMatch);
+    } catch {
+      messageApi.error("Você só pode remover os seus comentários.");
+    }
+  };
 
-  const pendingMatches = matches.filter((match) => match.status === "finished" && match.has_pending_votes);
+  const openLineupDrawer = async (match: MatchData) => {
+    setLineupMatch(match);
+    setLineupLoading(true);
+    try {
+      const [{ data: playersData }, { data: matchData }] = await Promise.all([
+        api.get(`/matches/${match.id}/players`),
+        api.get(`/matches/${match.id}`),
+      ]);
 
-  const content =
-    activeTab === "open"
-      ? openMatches
-      : activeTab === "finished"
-      ? finishedMatches
-      : activeTab === "pending"
-      ? pendingMatches
-      : rankingPlayers;
+      setLineupPlayers((playersData?.data ?? playersData ?? []) as OrganizationPlayer[]);
+
+      const payload = matchData?.data ?? matchData;
+      setTeamAIds(payload?.result?.players_team_a ?? []);
+      setTeamBIds(payload?.result?.players_team_b ?? []);
+    } catch {
+      messageApi.error("Não foi possível abrir escalação.");
+      setLineupPlayers([]);
+      setTeamAIds([]);
+      setTeamBIds([]);
+    } finally {
+      setLineupLoading(false);
+    }
+  };
+
+  const registerInMatch = async () => {
+    if (!lineupMatch || !user) return;
+    await api.post(`/matches/${lineupMatch.id}/players/${user.id}`);
+    setClubEnergy((current) => Math.min(100, current + 4));
+    await openLineupDrawer(lineupMatch);
+    await fetchDashboardData();
+  };
+
+  const leaveMatch = async () => {
+    if (!lineupMatch || !user) return;
+    await api.delete(`/matches/${lineupMatch.id}/players/${user.id}`);
+    await openLineupDrawer(lineupMatch);
+    await fetchDashboardData();
+  };
+
+  const randomizeTeams = () => {
+    const ids = lineupPlayers.map((player) => player.id).sort(() => Math.random() - 0.5);
+    const half = Math.ceil(ids.length / 2);
+    setTeamAIds(ids.slice(0, half));
+    setTeamBIds(ids.slice(half));
+  };
+
+  const movePlayerTo = (playerId: number, target: "A" | "B") => {
+    if (target === "A") {
+      setTeamBIds((prev) => prev.filter((id) => id !== playerId));
+      setTeamAIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
+    } else {
+      setTeamAIds((prev) => prev.filter((id) => id !== playerId));
+      setTeamBIds((prev) => (prev.includes(playerId) ? prev : [...prev, playerId]));
+    }
+  };
+
+  const saveLineup = async () => {
+    if (!lineupMatch || !isAdmin) return;
+    try {
+      await api.put(`/matches/${lineupMatch.id}/result`, {
+        players_team_a: teamAIds,
+        players_team_b: teamBIds,
+      });
+      messageApi.success("Escalações salvas com sucesso.");
+    } catch {
+      await api.post(`/matches/${lineupMatch.id}/result`, {
+        players_team_a: teamAIds,
+        players_team_b: teamBIds,
+      });
+      messageApi.success("Escalações salvas com sucesso.");
+    }
+  };
 
   const submitCreateMatch = async (event: FormEvent) => {
     event.preventDefault();
-
-    if (!orgId || !newMatchDate) {
-      setError("Informe a data da partida.");
-      return;
-    }
-
+    if (!orgId || !newMatchDate) return;
     setIsBusy(true);
-    setError(null);
-    setFeedback(null);
-
     try {
       await api.post("/matches", {
         organization_id: Number(orgId),
@@ -237,15 +374,12 @@ export default function OrganizationDashboard() {
         match_date: formatDateForApi(newMatchDate),
         tournament_id: newMatchTournamentId === "none" ? null : Number(newMatchTournamentId),
       });
-
-      setFeedback("Partida criada com sucesso.");
       setNewMatchDate("");
-      setNewMatchName("Pelada Futclebs");
-      setNewMatchTournamentId("none");
       setIsCreateMatchOpen(false);
+      messageApi.success("Partida criada com sucesso.");
       await fetchDashboardData();
-    } catch (requestError: any) {
-      setError(requestError.response?.data?.message ?? "Não foi possível criar a partida.");
+    } catch {
+      messageApi.error("Não foi possível criar a partida.");
     } finally {
       setIsBusy(false);
     }
@@ -253,16 +387,8 @@ export default function OrganizationDashboard() {
 
   const submitCreateTournament = async (event: FormEvent) => {
     event.preventDefault();
-
-    if (!orgId || !newTournamentName.trim()) {
-      setError("Dê um nome para o torneio.");
-      return;
-    }
-
+    if (!orgId || !newTournamentName.trim()) return;
     setIsBusy(true);
-    setError(null);
-    setFeedback(null);
-
     try {
       await api.post("/tournaments", {
         organization_id: Number(orgId),
@@ -270,465 +396,364 @@ export default function OrganizationDashboard() {
         type: newTournamentType,
         start_date: newTournamentStartDate || null,
       });
-
-      setFeedback("Torneio criado com sucesso.");
       setNewTournamentName("");
-      setNewTournamentStartDate("");
       setIsCreateTournamentOpen(false);
+      messageApi.success("Torneio criado com sucesso.");
       await fetchDashboardData();
-    } catch (requestError: any) {
-      setError(requestError.response?.data?.message ?? "Não foi possível criar o torneio.");
+    } catch {
+      messageApi.error("Não foi possível criar o torneio.");
     } finally {
       setIsBusy(false);
     }
   };
 
+  const tabItems = [
+    { label: `Abertas (${openMatches.length})`, value: "open" },
+    { label: `Votar (${pendingMatches.length})`, value: "pending" },
+    { label: `Histórico (${finishedMatches.length})`, value: "finished" },
+    { label: `Ranking (${rankingPlayers.length})`, value: "ranking" },
+    { label: `Torneios (${tournaments.length})`, value: "tournaments" },
+  ];
+
+  const dynamicInsights = useMemo(
+    () => [
+      {
+        title: "Energia do elenco",
+        value: `${clubEnergy}%`,
+        hint: "Aumenta com inscrições e comentários",
+        icon: <AimOutlined />,
+      },
+      {
+        title: "Engajamento de partidas",
+        value: `${Math.min(100, openMatches.length * 20 + finishedMatches.length * 8)}%`,
+        hint: "Com base em partidas abertas e finalizadas",
+        icon: <BarChartOutlined />,
+      },
+      {
+        title: "Potencial competitivo",
+        value: `${Math.min(100, Math.round((rankingPlayers[0]?.pivot?.overall ?? 0) * 1.1))}%`,
+        hint: "Projeção da força do seu top 1",
+        icon: <TrophyOutlined />,
+      },
+    ],
+    [clubEnergy, openMatches.length, finishedMatches.length, rankingPlayers],
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">
-        <p className="text-slate-400">Carregando dashboard da organização...</p>
+        <Spin size="large" />
       </div>
     );
   }
 
   if (!organization) {
-    return (
-      <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center flex-col gap-4">
-        <p className="text-slate-400">Não foi possível carregar esta organização.</p>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold"
-        >
-          Voltar ao dashboard
-        </button>
-      </div>
-    );
+    return <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">Sem dados.</div>;
   }
 
-  const uniquePositions = Array.from(
-    new Set((organization.players ?? []).map((player) => player.primary_position || "Linha"))
-  );
+  const uniquePositions = Array.from(new Set((organization.players ?? []).map((player) => player.primary_position || "Linha")));
+  const activeMatches = activeTab === "open" ? openMatches : activeTab === "finished" ? finishedMatches : pendingMatches;
+  const isUserRegisteredInLineup = lineupPlayers.some((player) => player.id === user?.id);
 
   return (
     <div className="min-h-screen bg-[#020b22] text-white">
-      <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
-        <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+      {contextHolder}
+      <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-[11px] text-[#5d6e90] font-black uppercase tracking-[0.20em]">Futclebs • Dashboard</p>
-            <h1 className="text-4xl font-black mt-2">{user?.name ?? "Jogador"}</h1>
-            <p className="text-sm text-[#8498be] mt-1">{organization.name}</p>
-            {isAdmin && (
-              <span className="inline-flex mt-2 px-3 py-1 rounded-full bg-white text-[#020b22] text-[11px] font-black uppercase">
-                Modo admin
-              </span>
-            )}
+            <Text className="!text-[#7c93bf] !uppercase !tracking-[0.2em]">Futclebs • Dashboard</Text>
+            <Title level={2} className="!text-white !m-0">{user?.name}</Title>
+            <Text className="!text-[#9bb1d9]">{organization.name}</Text>
           </div>
 
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => {
-                setIsCreateMatchOpen(false);
-                setIsCreateTournamentOpen(true);
-              }}
-              disabled={!isAdmin}
-              className="px-5 py-3 rounded-2xl bg-[#12305f] border border-[#27467a] text-white font-black uppercase text-xs disabled:opacity-40"
-            >
-              Criar torneio
-            </button>
-            <button
-              onClick={() => {
-                setIsCreateTournamentOpen(false);
-                setIsCreateMatchOpen(true);
-              }}
-              disabled={!isAdmin}
-              className="px-5 py-3 rounded-2xl bg-emerald-500 text-[#021125] font-black uppercase text-xs disabled:opacity-40"
-            >
-              Criar só partida
-            </button>
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="px-5 py-3 rounded-2xl bg-[#0b1a39] border border-[#1f3159] text-[#7a8cb2] font-black uppercase text-xs"
-            >
-              Sair
-            </button>
-          </div>
-        </header>
+          <Space wrap>
+            <Button icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)} disabled={!isAdmin}>Criar torneio</Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateMatchOpen(true)} disabled={!isAdmin}>Criar partida</Button>
+            <Button icon={<ReloadOutlined />} onClick={fetchDashboardData}>Atualizar</Button>
+            <Button onClick={() => navigate("/dashboard")}>Sair</Button>
+          </Space>
+        </div>
 
-        {(feedback || error) && (
-          <div
-            className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
-              error
-                ? "bg-red-500/10 border-red-400/20 text-red-300"
-                : "bg-emerald-500/10 border-emerald-400/20 text-emerald-300"
-            }`}
-          >
-            {error || feedback}
+        <Card className="!bg-gradient-to-r !from-[#0f8d63] !to-[#0f6e8d] !border-0">
+          <Row gutter={[16, 16]} align="middle">
+            <Col xs={24} md={16}>
+              <Text className="!text-emerald-100 !uppercase">Seu nível</Text>
+              <Title className="!text-white !m-0" level={1}>{userOverall} <span className="text-2xl">OVR</span></Title>
+              <Tag color="green">{userOnOrg?.primary_position || "Linha"}</Tag>
+            </Col>
+            <Col xs={24} md={8}>
+              <Statistic title="Partidas abertas" value={openMatches.length} valueStyle={{ color: "#fff" }} />
+              <Statistic title="Histórico" value={finishedMatches.length} valueStyle={{ color: "#c7ffea" }} />
+            </Col>
+          </Row>
+        </Card>
+
+        <Row gutter={[16, 16]}>
+          {dynamicInsights.map((insight) => (
+            <Col xs={24} md={8} key={insight.title}>
+              <Card className="transition-all duration-300 hover:!-translate-y-1 hover:!shadow-xl">
+                <Space className="w-full justify-between">
+                  <div>
+                    <Text type="secondary">{insight.title}</Text>
+                    <Title level={4} className="!m-0">{insight.value}</Title>
+                  </div>
+                  {insight.icon}
+                </Space>
+                <Text className="!text-xs">{insight.hint}</Text>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        <Segmented block options={tabItems} value={activeTab} onChange={(value) => setActiveTab(value as DashboardTab)} />
+
+        <Row gutter={[12, 12]}>
+          {dynamicHighlights.map((highlight) => (
+            <Col xs={24} md={8} key={highlight.title}>
+              <Card className={`!border ${highlight.tone} transition-all duration-300 hover:!-translate-y-1`}>
+                <Text className="!text-slate-300">{highlight.title}</Text>
+                <Title level={4} className="!mb-0 !text-white">{highlight.value}</Title>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {(activeTab === "open" || activeTab === "finished" || activeTab === "pending") && (
+          <div className="grid gap-4">
+            {activeMatches.length === 0 && <Empty description="Nenhuma partida encontrada" />}
+            {activeMatches.map((match) => {
+              const tournamentName = tournaments.find((tournament) => tournament.id === match.tournament_id)?.name;
+              return (
+                <Card
+                  key={match.id}
+                  hoverable
+                  className="!bg-[#04173b] !border-[#203254] transition-all duration-300 hover:!-translate-y-1 hover:!shadow-2xl"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <Title level={4} className="!text-white !m-0">{match.name || "Pelada Futclebs"}</Title>
+                      <Text className="!text-[#8ea4cf]"><CalendarOutlined /> {formatDateTimeLabel(match.match_date)}</Text>
+                      {tournamentName && <div><Tag color="cyan">Torneio: {tournamentName}</Tag></div>}
+                    </div>
+                    <Space wrap>
+                      <Tag color={match.status === "finished" ? "default" : "green"}>{match.status}</Tag>
+                      <Button icon={<TeamOutlined />} onClick={() => openLineupDrawer(match)}>Escalação</Button>
+                      <Button icon={<CommentOutlined />} onClick={() => openCommentsModal(match)}>Comentários</Button>
+                    </Space>
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         )}
 
-        <section className="rounded-[2rem] bg-gradient-to-r from-[#0f8d63] to-[#0f6e8d] px-7 py-8 flex items-center justify-between min-h-56">
-          <div>
-            <p className="text-xs font-black uppercase text-emerald-100 tracking-[0.25em]">Seu nível</p>
-            <div className="mt-4 flex items-end gap-2">
-              <span className="text-7xl font-black leading-none">{userOverall}</span>
-              <span className="text-3xl font-black text-emerald-200 mb-1">OVR</span>
-            </div>
-            <div className="mt-4 inline-flex px-4 py-2 rounded-xl bg-emerald-900/30 border border-emerald-200/20 text-sm font-bold">
-              {userOnOrg?.primary_position || "Linha"}
-            </div>
-          </div>
+        {activeTab === "ranking" && (
+          <div className="space-y-4">
+            <Space wrap>
+              <Input placeholder="Buscar jogador" value={rankingSearch} onChange={(e) => setRankingSearch(e.target.value)} />
+              <Select
+                value={rankingPositionFilter}
+                onChange={setRankingPositionFilter}
+                options={[{ label: "Todas as posições", value: "all" }, ...uniquePositions.map((p) => ({ label: p, value: p }))]}
+                style={{ minWidth: 220 }}
+              />
+            </Space>
 
-          <div className="hidden sm:flex flex-col items-end text-right">
-            <p className="text-emerald-100/80 text-xs uppercase font-black tracking-[0.2em]">Resumo</p>
-            <p className="mt-2 text-2xl font-black">{openMatches.length} partidas abertas</p>
-            <p className="text-emerald-100/80">{finishedMatches.length} no histórico</p>
-          </div>
-        </section>
-
-        <div className="bg-[#031131] border border-[#1a2848] rounded-2xl p-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-          {tabs.map((tab) => {
-            const count =
-              tab.key === "open"
-                ? openMatches.length
-                : tab.key === "finished"
-                ? finishedMatches.length
-                : tab.key === "ranking"
-                ? rankingPlayers.length
-                : pendingMatches.length;
-
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`rounded-xl py-3 text-sm font-black uppercase tracking-wider transition ${
-                  activeTab === tab.key ? "bg-emerald-500 text-[#021125]" : "text-[#6a7ea8] hover:text-white"
-                }`}
-              >
-                {tab.label}
-                {count > 0 && <span className="ml-2 text-xs opacity-80">{count}</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        <section className="rounded-[2rem] min-h-56 border border-dashed border-[#1b2b4d] bg-[#02102d] p-7">
-          {(activeTab === "open" || activeTab === "finished" || activeTab === "pending") &&
-            (content as MatchData[]).length === 0 && (
-              <p className="text-xl text-[#5f75a0] text-center py-12">Nenhuma partida encontrada nesta categoria.</p>
-            )}
-
-          {(activeTab === "open" || activeTab === "finished") && (content as MatchData[]).length > 0 && (
-            <div className="w-full space-y-3">
-              {(content as MatchData[]).map((match) => {
-                const tournamentName = tournaments.find((tournament) => tournament.id === match.tournament_id)?.name;
-
-                return (
-                  <article
-                    key={match.id}
-                    className="rounded-2xl border border-[#203254] bg-[#04173b] px-4 py-4 flex flex-col gap-3"
+            <Row gutter={[16, 16]}>
+              {rankingPlayers.map((player, index) => (
+                <Col xs={24} md={12} lg={8} key={player.id}>
+                  <Card
+                    hoverable
+                    onClick={() => setSelectedPlayer(player)}
+                    className="!bg-[#04173b] !border-[#1f3358] transition-all duration-300 hover:!-translate-y-1"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-lg">{match.name || "Pelada Futclebs"}</p>
-                        <p className="text-sm text-[#6f84ad]">{formatDateTimeLabel(match.match_date)}</p>
-                        {tournamentName && (
-                          <p className="text-xs text-emerald-300 uppercase tracking-wider mt-1">Torneio: {tournamentName}</p>
-                        )}
-                      </div>
+                    <Text className="!text-[#9fb5db]">#{index + 1}</Text>
+                    <Title level={5} className="!text-white !mb-1">{player.name}</Title>
+                    <Text className="!text-[#7992bd]">{player.primary_position || "Linha"}</Text>
+                    <Title level={3} className="!text-emerald-400 !m-0">{player.pivot?.overall ?? 0}</Title>
+                    <Progress percent={Math.min(player.pivot?.overall ?? 0, 100)} showInfo={false} strokeColor="#36d399" />
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        )}
 
-                      <div className="flex gap-2 items-center">
-                        <span className="inline-flex px-3 py-1 rounded-full bg-emerald-900/30 border border-emerald-300/20 text-emerald-300 text-xs font-bold uppercase w-fit">
-                          {match.status === "finished"
-                            ? "Finalizada"
-                            : match.status === "in_progress"
-                            ? "Em andamento"
-                            : "Aberta"}
-                        </span>
-                        {isAdmin && (
-                          <button
-                            onClick={() => setAdminMatchId((current) => (current === match.id ? null : match.id))}
-                            className="px-3 py-1 rounded-lg bg-[#0d234b] border border-[#1d3560] text-xs font-bold uppercase"
-                          >
-                            Administrar
-                          </button>
-                        )}
-                      </div>
-                    </div>
+        {activeTab === "tournaments" && (
+          <div className="space-y-4">
+            <Row gutter={[16, 16]}>
+              <Col xs={24} md={8}><Card><Statistic title="Torneios ativos" value={tournaments.length} prefix={<TrophyOutlined />} /></Card></Col>
+              <Col xs={24} md={8}><Card><Statistic title="Partidas em torneios" value={matches.filter((m) => m.tournament_id).length} prefix={<FireOutlined />} /></Card></Col>
+              <Col xs={24} md={8}><Card><Statistic title="Jogadores da org" value={organization.players?.length || 0} prefix={<UserOutlined />} /></Card></Col>
+            </Row>
 
-                    {isAdmin && adminMatchId === match.id && (
-                      <div className="grid sm:grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            setFeedback(`Painel da partida #${match.id} carregado.`);
-                            setError(null);
-                          }}
-                          className="rounded-xl bg-[#102a57] border border-[#224374] py-2 text-xs font-black uppercase"
-                        >
-                          Abrir painel técnico
-                        </button>
-                        <button
-                          onClick={() => {
-                            setIsCreateMatchOpen(true);
-                            setNewMatchName(`Revanche ${match.name || "Futclebs"}`);
-                          }}
-                          className="rounded-xl bg-[#0f8d63] py-2 text-xs font-black uppercase text-[#021125]"
-                        >
-                          Criar nova rodada
-                        </button>
-                      </div>
-                    )}
-                  </article>
+            <Row gutter={[16, 16]}>
+              {tournaments.map((tournament) => {
+                const tournamentMatches = matches.filter((match) => match.tournament_id === tournament.id);
+                const finishedCount = tournamentMatches.filter((match) => match.status === "finished").length;
+                return (
+                  <Col xs={24} md={12} key={tournament.id}>
+                    <Card hoverable className="transition-all duration-300 hover:!-translate-y-1">
+                      <Title level={4}>{tournament.name}</Title>
+                      <Space wrap>
+                        <Tag color="blue">{tournament.type === "knockout" ? "Mata-mata" : "Liga"}</Tag>
+                        {tournament.start_date && <Tag>{new Date(tournament.start_date).toLocaleDateString("pt-BR")}</Tag>}
+                      </Space>
+                      <Divider />
+                      <Text>Total de partidas: {tournamentMatches.length}</Text><br />
+                      <Text>Finalizadas: {finishedCount}</Text>
+                      <Progress percent={tournamentMatches.length ? Math.round((finishedCount / tournamentMatches.length) * 100) : 0} />
+                    </Card>
+                  </Col>
                 );
               })}
-            </div>
-          )}
-
-          {activeTab === "ranking" && (
-            <div className="space-y-6">
-              <div className="grid sm:grid-cols-3 gap-3">
-                {topThreePlayers.map((player, index) => (
-                  <article
-                    key={player.id}
-                    onClick={() => setSelectedPlayer(player)}
-                    className="rounded-2xl border border-[#1f3358] bg-gradient-to-b from-[#0d2249] to-[#081731] p-4 cursor-pointer hover:border-emerald-400/40 transition"
-                  >
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#89a4d3]">#{index + 1} Lugar</p>
-                    <p className="mt-2 text-lg font-bold">{player.name}</p>
-                    <p className="text-xs text-[#6a7ea8] uppercase">{player.primary_position || "Linha"}</p>
-                    <p className="text-4xl font-black text-emerald-400 mt-4">{player.pivot?.overall ?? 0}</p>
-                    <p className="text-xs text-[#9fb5db] mt-2">⚽ {player.goals_total ?? 0} • 🅰️ {player.assists_total ?? 0}</p>
-                  </article>
-                ))}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3">
-                <input
-                  value={rankingSearch}
-                  onChange={(event) => setRankingSearch(event.target.value)}
-                  placeholder="Buscar jogador"
-                  className="flex-1 rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                />
-                <select
-                  value={rankingPositionFilter}
-                  onChange={(event) => setRankingPositionFilter(event.target.value)}
-                  className="rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                >
-                  <option value="all">Todas as posições</option>
-                  {uniquePositions.map((position) => (
-                    <option key={position} value={position}>
-                      {position}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="w-full grid sm:grid-cols-2 gap-3">
-                {restOfRanking.map((player, index) => (
-                  <article
-                    key={player.id}
-                    onClick={() => setSelectedPlayer(player)}
-                    className="rounded-2xl border border-[#1f3358] bg-[#04173b] px-4 py-3 flex items-center justify-between cursor-pointer hover:border-emerald-400/40 transition"
-                  >
-                    <div>
-                      <p className="font-semibold">#{index + 4} {player.name}</p>
-                      <p className="text-xs text-[#6a7ea8] uppercase">{player.primary_position || "Linha"}</p>
-                      <p className="text-xs text-[#9fb5db]">⚽ {player.goals_total ?? 0} • 🅰️ {player.assists_total ?? 0}</p>
-                    </div>
-                    <span className="text-2xl font-black text-emerald-400">{player.pivot?.overall ?? 0}</span>
-                  </article>
-                ))}
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-3">
-                <article className="rounded-2xl border border-[#1f3358] bg-[#04173b] p-4">
-                  <h4 className="font-black text-sm uppercase text-emerald-300">Ranking de Artilheiros</h4>
-                  <div className="mt-3 space-y-2">
-                    {topScorers.map((player, index) => (
-                      <div key={`scorer-${player.id}`} className="flex items-center justify-between text-sm">
-                        <span>#{index + 1} {player.name}</span>
-                        <span className="font-black text-emerald-400">⚽ {player.goals_total ?? 0}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-
-                <article className="rounded-2xl border border-[#1f3358] bg-[#04173b] p-4">
-                  <h4 className="font-black text-sm uppercase text-blue-300">Ranking de Assistentes</h4>
-                  <div className="mt-3 space-y-2">
-                    {topAssisters.map((player, index) => (
-                      <div key={`assist-${player.id}`} className="flex items-center justify-between text-sm">
-                        <span>#{index + 1} {player.name}</span>
-                        <span className="font-black text-blue-300">🅰️ {player.assists_total ?? 0}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              </div>
-            </div>
-
-          )}
-        </section>
+            </Row>
+            {tournaments.length === 0 && <Empty description="Crie seu primeiro torneio" />}
+          </div>
+        )}
       </div>
 
-      {selectedPlayer && (
-        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-xl rounded-3xl bg-gradient-to-b from-[#0b1f47] to-[#06122a] border border-[#2a4676] p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-[#8ca4ce]">Card do Jogador</p>
-                <h3 className="text-2xl font-black mt-1">{selectedPlayer.name}</h3>
-                <p className="text-sm text-[#91a7d0]">{selectedPlayer.primary_position || "Linha"} • OVR {selectedPlayer.pivot?.overall ?? 0}</p>
-              </div>
-              <button onClick={() => setSelectedPlayer(null)} className="text-slate-200 text-xl">✕</button>
-            </div>
+      <Modal open={Boolean(selectedPlayer)} onCancel={() => setSelectedPlayer(null)} footer={null} title={selectedPlayer?.name}>
+        {selectedPlayer && (
+          <List
+            size="small"
+            dataSource={[
+              `Posição: ${selectedPlayer.primary_position || "Linha"}`,
+              `OVR: ${selectedPlayer.pivot?.overall ?? 0}`,
+              `Gols: ${selectedPlayer.goals_total ?? 0}`,
+              `Assistências: ${selectedPlayer.assists_total ?? 0}`,
+              `Passe: ${selectedPlayer.pivot?.passe ?? 0}`,
+              `Drible: ${selectedPlayer.pivot?.drible ?? 0}`,
+            ]}
+            renderItem={(item) => <List.Item>{item}</List.Item>}
+          />
+        )}
+      </Modal>
 
-            <div className="grid sm:grid-cols-2 gap-3 mt-5">
-              <div className="rounded-2xl bg-[#031131] border border-[#1f3358] p-4 space-y-1 text-sm">
-                <p><span className="text-[#7d95c1]">Email:</span> {selectedPlayer.email || "-"}</p>
-                <p><span className="text-[#7d95c1]">Usuário:</span> {selectedPlayer.username || "-"}</p>
-                <p><span className="text-[#7d95c1]">Posição secundária:</span> {selectedPlayer.secondary_position || "-"}</p>
-                <p><span className="text-[#7d95c1]">Gênero:</span> {selectedPlayer.gender || "-"}</p>
-                <p><span className="text-[#7d95c1]">Nascimento:</span> {selectedPlayer.birthdate ? new Date(selectedPlayer.birthdate).toLocaleDateString("pt-BR") : "-"}</p>
-                <p><span className="text-[#7d95c1]">Status:</span> {selectedPlayer.status || "-"}</p>
-              </div>
-
-              <div className="rounded-2xl bg-[#031131] border border-[#1f3358] p-4 grid grid-cols-2 gap-2 text-sm">
-                <p className="text-emerald-300">⚽ Gols: {selectedPlayer.goals_total ?? 0}</p>
-                <p className="text-blue-300">🅰️ Assist.: {selectedPlayer.assists_total ?? 0}</p>
-                <p>🏃 Vel: {selectedPlayer.pivot?.velocidade ?? 0}</p>
-                <p>🎯 Final: {selectedPlayer.pivot?.finalizacao ?? 0}</p>
-                <p>🧠 Passe: {selectedPlayer.pivot?.passe ?? 0}</p>
-                <p>🪄 Drible: {selectedPlayer.pivot?.drible ?? 0}</p>
-                <p>🛡️ Defesa: {selectedPlayer.pivot?.defesa ?? 0}</p>
-                <p>💪 Físico: {selectedPlayer.pivot?.fisico ?? 0}</p>
-                <p className="col-span-2">🤝 Esportividade: {selectedPlayer.pivot?.esportividade ?? 0}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {(isCreateMatchOpen || isCreateTournamentOpen) && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-[#071632] border border-[#203760] p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-black uppercase tracking-wider">
-                Criar competição
-              </h3>
-              <button
-                onClick={() => {
-                  setIsCreateMatchOpen(false);
-                  setIsCreateTournamentOpen(false);
-                }}
-                className="text-slate-300"
+      <Modal
+        open={Boolean(commentsModalMatch)}
+        title={`Comentários - ${commentsModalMatch?.name || "Partida"}`}
+        onCancel={() => setCommentsModalMatch(null)}
+        footer={null}
+      >
+        {commentsLoading ? (
+          <Spin />
+        ) : (
+          <List
+            dataSource={comments}
+            locale={{ emptyText: "Sem comentários ainda" }}
+            renderItem={(comment) => (
+              <List.Item
+                actions={comment.player_id === user?.id ? [<Button danger type="link" onClick={() => deleteComment(comment.id)}>Remover</Button>] : []}
               >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 mb-5 rounded-2xl bg-[#031131] border border-[#1b2f57] p-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCreateMatchOpen(true);
-                  setIsCreateTournamentOpen(false);
-                }}
-                className={`rounded-xl py-2 text-xs font-black uppercase tracking-wider ${
-                  isCreateMatchOpen ? "bg-emerald-500 text-[#021125]" : "text-[#7a8cb2]"
-                }`}
-              >
-                Partida
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCreateMatchOpen(false);
-                  setIsCreateTournamentOpen(true);
-                }}
-                className={`rounded-xl py-2 text-xs font-black uppercase tracking-wider ${
-                  isCreateTournamentOpen ? "bg-[#4d9cff] text-[#021125]" : "text-[#7a8cb2]"
-                }`}
-              >
-                Torneio
-              </button>
-            </div>
-
-            {isCreateMatchOpen && (
-              <form onSubmit={submitCreateMatch} className="space-y-4">
-                <input
-                  value={newMatchName}
-                  onChange={(event) => setNewMatchName(event.target.value)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                  placeholder="Nome da partida"
+                <List.Item.Meta
+                  avatar={<Avatar src={comment.player?.avatar || undefined}>{comment.player?.name?.[0]}</Avatar>}
+                  title={comment.player?.name || "Jogador"}
+                  description={comment.content}
                 />
-                <input
-                  type="date"
-                  value={newMatchDate}
-                  onChange={(event) => setNewMatchDate(event.target.value)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                  min={new Date().toISOString().split("T")[0]}
-                  required
-                />
-                <select
-                  value={newMatchTournamentId}
-                  onChange={(event) => setNewMatchTournamentId(event.target.value)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                >
-                  <option value="none">Sem torneio (partida avulsa)</option>
-                  {tournaments.map((tournament) => (
-                    <option key={tournament.id} value={tournament.id}>
-                      {tournament.name}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className="w-full rounded-xl bg-emerald-500 text-[#021125] font-black py-3"
-                >
-                  {isBusy ? "Criando..." : "Criar partida"}
-                </button>
-              </form>
+              </List.Item>
             )}
+          />
+        )}
+        <Space.Compact className="w-full mt-3">
+          <Input value={newComment} onChange={(event) => setNewComment(event.target.value)} placeholder="Comente a partida..." />
+          <Button type="primary" icon={<SendOutlined />} onClick={addComment}>Enviar</Button>
+        </Space.Compact>
+      </Modal>
 
-            {isCreateTournamentOpen && (
-              <form onSubmit={submitCreateTournament} className="space-y-4">
-                <input
-                  value={newTournamentName}
-                  onChange={(event) => setNewTournamentName(event.target.value)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                  placeholder="Nome do torneio"
-                  required
-                />
-                <select
-                  value={newTournamentType}
-                  onChange={(event) => setNewTournamentType(event.target.value as TournamentType)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                >
-                  <option value="league">Liga</option>
-                  <option value="knockout">Mata-mata</option>
-                </select>
-                <input
-                  type="date"
-                  value={newTournamentStartDate}
-                  onChange={(event) => setNewTournamentStartDate(event.target.value)}
-                  className="w-full rounded-xl bg-[#031131] border border-[#1b2f57] px-3 py-2 text-sm"
-                  min={new Date().toISOString().split("T")[0]}
-                />
+      <Drawer
+        open={Boolean(lineupMatch)}
+        onClose={() => setLineupMatch(null)}
+        title={`Escalação - ${lineupMatch?.name || "Partida"}`}
+        width={560}
+      >
+        {lineupLoading ? (
+          <Spin />
+        ) : (
+          <>
+            <Space wrap className="mb-3">
+              {!isUserRegisteredInLineup ? (
+                <Button type="primary" onClick={registerInMatch}>Entrar na partida</Button>
+              ) : (
+                <Button danger onClick={leaveMatch}>Sair da partida</Button>
+              )}
+              {isAdmin && <Button onClick={randomizeTeams}>Sortear times</Button>}
+              {isAdmin && <Button type="primary" onClick={saveLineup}>Salvar escalação</Button>}
+            </Space>
 
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className="w-full rounded-xl bg-[#4d9cff] text-[#021125] font-black py-3"
+            <Row gutter={12}>
+              <Col span={12}>
+                <Card title="Time A" size="small">
+                  <List
+                    dataSource={lineupPlayers.filter((player) => teamAIds.includes(player.id))}
+                    locale={{ emptyText: "Sem jogadores" }}
+                    renderItem={(player) => (
+                      <List.Item actions={isAdmin ? [<Button type="link" onClick={() => movePlayerTo(player.id, "B")}>Mover</Button>] : []}>{player.name}</List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="Time B" size="small">
+                  <List
+                    dataSource={lineupPlayers.filter((player) => teamBIds.includes(player.id))}
+                    locale={{ emptyText: "Sem jogadores" }}
+                    renderItem={(player) => (
+                      <List.Item actions={isAdmin ? [<Button type="link" onClick={() => movePlayerTo(player.id, "A")}>Mover</Button>] : []}>{player.name}</List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            <Divider>Jogadores sem time</Divider>
+            <List
+              dataSource={lineupPlayers.filter((player) => !teamAIds.includes(player.id) && !teamBIds.includes(player.id))}
+              locale={{ emptyText: "Todos os jogadores já estão nos times" }}
+              renderItem={(player) => (
+                <List.Item
+                  actions={isAdmin ? [
+                    <Button type="link" onClick={() => movePlayerTo(player.id, "A")}>Time A</Button>,
+                    <Button type="link" onClick={() => movePlayerTo(player.id, "B")}>Time B</Button>,
+                  ] : []}
                 >
-                  {isBusy ? "Criando..." : "Criar torneio"}
-                </button>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                  {player.name}
+                </List.Item>
+              )}
+            />
+          </>
+        )}
+      </Drawer>
+
+      <Modal open={isCreateMatchOpen} onCancel={() => setIsCreateMatchOpen(false)} footer={null} title="Criar partida">
+        <form className="space-y-3" onSubmit={submitCreateMatch}>
+          <Input value={newMatchName} onChange={(event) => setNewMatchName(event.target.value)} placeholder="Nome da partida" />
+          <Input type="date" value={newMatchDate} onChange={(event) => setNewMatchDate(event.target.value)} required />
+          <Select
+            value={newMatchTournamentId}
+            onChange={setNewMatchTournamentId}
+            style={{ width: "100%" }}
+            options={[
+              { value: "none", label: "Sem torneio" },
+              ...tournaments.map((tournament) => ({ value: String(tournament.id), label: tournament.name })),
+            ]}
+          />
+          <Button type="primary" htmlType="submit" loading={isBusy} block>Criar partida</Button>
+        </form>
+      </Modal>
+
+      <Modal open={isCreateTournamentOpen} onCancel={() => setIsCreateTournamentOpen(false)} footer={null} title="Criar torneio">
+        <form className="space-y-3" onSubmit={submitCreateTournament}>
+          <Input value={newTournamentName} onChange={(event) => setNewTournamentName(event.target.value)} placeholder="Nome" required />
+          <Select
+            value={newTournamentType}
+            onChange={(value) => setNewTournamentType(value as TournamentType)}
+            options={[{ label: "Liga", value: "league" }, { label: "Mata-mata", value: "knockout" }]}
+          />
+          <Input type="date" value={newTournamentStartDate} onChange={(event) => setNewTournamentStartDate(event.target.value)} />
+          <Button type="primary" htmlType="submit" loading={isBusy} block>Criar torneio</Button>
+        </form>
+      </Modal>
     </div>
   );
 }
