@@ -2,7 +2,16 @@ import { api } from "@/services/axios";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button, Input, Progress, Select, Spin, Switch, Tag, Tooltip } from "antd";
-import { StarFilled, StarOutlined, ReloadOutlined, AppstoreOutlined, UnorderedListOutlined, SearchOutlined, TrophyOutlined, FilterOutlined } from "@ant-design/icons";
+import {
+  AppstoreOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  StarFilled,
+  StarOutlined,
+  TrophyOutlined,
+  UnorderedListOutlined,
+} from "@ant-design/icons";
 import JoinOrganizationModal from "@/components/modals/organization/JoinOrganizationModal";
 import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
 
@@ -163,7 +172,9 @@ export default function DashboardHome() {
               {org.is_admin && <Tag color="gold">ADMIN</Tag>}
               {isFavorite && <Tag color="purple">FAVORITA</Tag>}
             </div>
-            <p className="text-slate-400 text-sm max-w-2xl">{org.description || "Sem descrição disponível."}</p>
+            <p className="text-slate-400 text-sm max-w-2xl">
+              {org.description || "Sem descrição disponível."}
+            </p>
           </div>
 
           <div className="flex items-center gap-4">
@@ -240,19 +251,23 @@ export default function DashboardHome() {
       <UniversalNavbar />
 
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Seu Dashboard Profissional</h1>
-            <p className="text-slate-400 mt-2">Visual premium, filtros avançados e ações rápidas para gestão de organizações.</p>
-          </div>
+        <div className="bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Home Dashboard Futclebs</h1>
+              <p className="text-slate-300 mt-2 max-w-2xl">
+                Gerencie suas organizações com filtros inteligentes, favoritos e visão competitiva em um layout mais moderno.
+              </p>
+            </div>
 
-          <div className="flex gap-3 flex-wrap">
-            <Button onClick={() => setJoinOpen(true)} className="rounded-2xl bg-emerald-500 text-white" type="primary">
-              ➕ Entrar em Organização
-            </Button>
-            <Button onClick={fetchMyOrgs} className="rounded-2xl" icon={<ReloadOutlined />}>
-              Atualizar
-            </Button>
+            <div className="flex gap-3 flex-wrap">
+              <Button onClick={() => setJoinOpen(true)} className="rounded-2xl bg-emerald-500 text-white" type="primary">
+                ➕ Entrar em Organização
+              </Button>
+              <Button onClick={fetchMyOrgs} className="rounded-2xl" icon={<ReloadOutlined />}>
+                Atualizar
+              </Button>
+            </div>
           </div>
         </div>
 
