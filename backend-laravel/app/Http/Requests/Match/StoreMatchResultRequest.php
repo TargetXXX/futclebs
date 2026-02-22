@@ -14,13 +14,13 @@ class StoreMatchResultRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'goals_team_a' => ['required', 'integer', 'min:0'],
-            'goals_team_b' => ['required', 'integer', 'min:0'],
+            'goals_team_a' => ['sometimes', 'integer', 'min:0'],
+            'goals_team_b' => ['sometimes', 'integer', 'min:0'],
 
-            'players_team_a' => ['required', 'array'],
+            'players_team_a' => ['required_without:players_team_b', 'array'],
             'players_team_a.*' => ['integer', 'exists:players,id'],
 
-            'players_team_b' => ['required', 'array'],
+            'players_team_b' => ['required_without:players_team_a', 'array'],
             'players_team_b.*' => ['integer', 'exists:players,id'],
 
             'scorers' => ['sometimes', 'array'],
