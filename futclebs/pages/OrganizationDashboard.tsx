@@ -137,7 +137,7 @@ export default function OrganizationDashboard() {
   const [isBusy, setIsBusy] = useState(false);
 
   const [newMatchDate, setNewMatchDate] = useState("");
-  const [newMatchName, setNewMatchName] = useState("Partida de torneio");
+  const [newMatchName, setNewMatchName] = useState("Partida amistosa");
   const [newMatchTournamentId, setNewMatchTournamentId] = useState<string>("none");
   const [newMatchTeamAId, setNewMatchTeamAId] = useState<string>("");
   const [newMatchTeamBId, setNewMatchTeamBId] = useState<string>("");
@@ -227,6 +227,13 @@ export default function OrganizationDashboard() {
   useEffect(() => {
     setNewMatchTeamAId("");
     setNewMatchTeamBId("");
+
+    if (newMatchTournamentId === "none") {
+      setNewMatchName("Partida amistosa");
+      return;
+    }
+
+    setNewMatchName("Partida de torneio");
   }, [newMatchTournamentId]);
 
   const userOnOrg = useMemo(
@@ -485,6 +492,11 @@ export default function OrganizationDashboard() {
       return;
     }
 
+    if (isTournamentMatch && newMatchTeamAId === newMatchTeamBId) {
+      messageApi.warning("Os times da partida precisam ser diferentes.");
+      return;
+    }
+
     setIsBusy(true);
     try {
       await api.post("/matches", {
@@ -496,7 +508,7 @@ export default function OrganizationDashboard() {
         team_b_id: isTournamentMatch ? Number(newMatchTeamBId) : null,
       });
       setNewMatchDate("");
-      setNewMatchName("Partida de torneio");
+      setNewMatchName("Partida amistosa");
       setNewMatchTournamentId("none");
       setIsCreateMatchOpen(false);
       messageApi.success("Partida criada com sucesso.");
@@ -714,18 +726,39 @@ export default function OrganizationDashboard() {
                 <Col xs={24} md={12} lg={8} key={player.id}>
                   <Card
                     hoverable
-                    className="dashboard-glow !bg-gradient-to-br !from-slate-900 !via-slate-900 !to-[#111a34] !border-slate-600 !rounded-2xl !shadow-lg !shadow-black/30 hover:!border-emerald-300/30"
+                    className="!rounded-[26px] !border-[#c5aa5b] !bg-gradient-to-b !from-[#f7e7b0] !via-[#e8cf89] !to-[#c7a85a] !shadow-2xl !shadow-amber-900/35 transition-all duration-300 hover:!-translate-y-1"
+                    styles={{ body: { padding: 14 } }}
+                    style={{ clipPath: "polygon(0 0, 100% 0, 100% 93%, 50% 100%, 0 93%)" }}
                     onClick={() => setSelectedPlayer(player)}
                   >
-                    <Text className="!text-[#7ea3e5]">#{index + 1}</Text>
-                    <Title level={5} className="!text-white !mb-1">{player.name}</Title>
-                    <Text className="!text-slate-400">{player.primary_position || "Linha"}</Text>
-                    <Title level={3} className="!text-emerald-400 !m-0">{player.pivot?.overall ?? 0}</Title>
-                    <Progress
-                      percent={Math.min(player.pivot?.overall ?? 0, 100)}
-                      showInfo={false}
-                      strokeColor="#36d399"
-                    />
+                    <div className="rounded-2xl border border-amber-900/20 bg-gradient-to-b from-[#f9eec8]/90 to-[#d4b26a]/90 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-4xl font-black leading-none text-[#2d2110]">{player.pivot?.overall ?? 0}</div>
+                          <div className="text-xs font-bold uppercase tracking-wider text-[#4e3a1a]">{player.primary_position || "Linha"}</div>
+                        </div>
+                        <Tag color="gold" className="!mr-0 !border-amber-700 !text-[#3b2a11]">#{index + 1}</Tag>
+                      </div>
+
+                      <div className="mt-2 flex justify-center">
+                        <Avatar src={player.avatar || undefined} size={92} className="!border-4 !border-amber-100 !bg-slate-700 !text-white">
+                          {player.name?.[0]}
+                        </Avatar>
+                      </div>
+
+                      <div className="mt-2 border-y border-amber-900/25 py-1 text-center text-base font-extrabold uppercase tracking-wide text-[#2f220f]">
+                        {player.name}
+                      </div>
+
+                      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-bold text-[#3e2e14]">
+                        <div className="flex justify-between"><span>PAC</span><span>{player.pivot?.velocidade ?? 0}</span></div>
+                        <div className="flex justify-between"><span>SHO</span><span>{player.pivot?.finalizacao ?? 0}</span></div>
+                        <div className="flex justify-between"><span>PAS</span><span>{player.pivot?.passe ?? 0}</span></div>
+                        <div className="flex justify-between"><span>DRI</span><span>{player.pivot?.drible ?? 0}</span></div>
+                        <div className="flex justify-between"><span>DEF</span><span>{player.pivot?.defesa ?? 0}</span></div>
+                        <div className="flex justify-between"><span>PHY</span><span>{player.pivot?.fisico ?? 0}</span></div>
+                      </div>
+                    </div>
                   </Card>
                 </Col>
               ))}

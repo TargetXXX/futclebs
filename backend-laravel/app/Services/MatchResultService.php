@@ -74,13 +74,16 @@ class MatchResultService
             }
         }
 
-        $goalsA = (int) $data['goals_team_a'];
-        $goalsB = (int) $data['goals_team_b'];
+        $hasGoalsA = array_key_exists('goals_team_a', $data);
+        $hasGoalsB = array_key_exists('goals_team_b', $data);
+
+        $goalsA = (int) ($data['goals_team_a'] ?? 0);
+        $goalsB = (int) ($data['goals_team_b'] ?? 0);
 
         $scorersA = (int) $scorers->where('team', 'A')->sum('goals');
         $scorersB = (int) $scorers->where('team', 'B')->sum('goals');
 
-        if ($scorers->isNotEmpty() && ($scorersA !== $goalsA || $scorersB !== $goalsB)) {
+        if ($scorers->isNotEmpty() && (($hasGoalsA && $scorersA !== $goalsA) || ($hasGoalsB && $scorersB !== $goalsB))) {
             throw ValidationException::withMessages([
                 'scorers' => 'A soma de gols atribuídos deve ser igual ao placar final para cada time.',
             ]);
@@ -89,7 +92,7 @@ class MatchResultService
         $assistsA = (int) $assists->where('team', 'A')->sum('assists');
         $assistsB = (int) $assists->where('team', 'B')->sum('assists');
 
-        if ($assistsA > $goalsA || $assistsB > $goalsB) {
+        if (($hasGoalsA && $assistsA > $goalsA) || ($hasGoalsB && $assistsB > $goalsB)) {
             throw ValidationException::withMessages([
                 'assists' => 'A soma de assistências não pode ser maior que os gols do time.',
             ]);

@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Team\StoreTeamRequest;
 use App\Http\Requests\Team\UpdateTeamRequest;
 use App\Http\Resources\TeamResource;
-use Team;
+use App\Models\Team;
 
 use App\Services\TeamService;
 
@@ -44,4 +44,3 @@ class TeamController extends Controller
         return response()->json(['message' => 'Time removido']);
     }
 }
-
