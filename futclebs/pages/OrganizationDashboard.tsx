@@ -235,6 +235,10 @@ export default function OrganizationDashboard() {
 
   const userOverall = userOnOrg?.pivot?.overall ?? 0;
   const isAdmin = Boolean(userOnOrg?.pivot?.is_admin);
+  const actionButtonClass =
+    "!h-10 !rounded-xl !border-slate-500/40 !bg-slate-900/70 !px-4 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200";
+  const primaryButtonClass =
+    "!h-10 !rounded-xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-4 !font-semibold !shadow-md !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300";
 
   const openMatches = useMemo(() => matches.filter((match) => match.status !== "finished"), [matches]);
   const finishedMatches = useMemo(() => matches.filter((match) => match.status === "finished"), [matches]);
@@ -601,10 +605,11 @@ export default function OrganizationDashboard() {
           </div>
 
           <Space wrap>
-            <Button icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)} disabled={!isAdmin}>
+            <Button className={primaryButtonClass} icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)} disabled={!isAdmin}>
               Novo torneio
             </Button>
             <Button
+              className={primaryButtonClass}
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => {
@@ -616,8 +621,8 @@ export default function OrganizationDashboard() {
             >
               Nova partida
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={fetchDashboardData}>Atualizar</Button>
-            <Button onClick={() => navigate("/dashboard")}>Voltar</Button>
+            <Button className={actionButtonClass} icon={<ReloadOutlined />} onClick={fetchDashboardData}>Atualizar</Button>
+            <Button className={actionButtonClass} onClick={() => navigate("/dashboard")}>Voltar</Button>
           </Space>
         </div>
 
@@ -637,7 +642,7 @@ export default function OrganizationDashboard() {
           </Row>
         </Card>
 
-        <Segmented block options={tabItems} value={activeTab} onChange={(value) => setActiveTab(value as DashboardTab)} />
+        <Segmented className="[&_.ant-segmented-group]:!gap-1 [&_.ant-segmented-item]:!rounded-xl [&_.ant-segmented-item-selected]:!bg-cyan-500/25 [&_.ant-segmented-item]:!text-slate-200" block options={tabItems} value={activeTab} onChange={(value) => setActiveTab(value as DashboardTab)} />
 
         {(activeTab === "open" || activeTab === "finished" || activeTab === "pending") && (
           <div className="grid gap-4">
@@ -646,7 +651,7 @@ export default function OrganizationDashboard() {
               <Select
                 value={matchTournamentFilter}
                 onChange={setMatchTournamentFilter}
-                style={{ minWidth: 260 }}
+                style={{ minWidth: 260 }} className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
                 options={[
                   { value: "all", label: "Todas as partidas" },
                   ...tournaments.map((tournament) => ({
@@ -666,7 +671,7 @@ export default function OrganizationDashboard() {
                 <Card
                   key={match.id}
                   hoverable
-                  className="!bg-[#04173b] !border-[#203254] !rounded-2xl transition-all duration-300 hover:!-translate-y-1 hover:!shadow-2xl"
+                  className="!bg-gradient-to-br !from-[#071b43] !to-[#0a224d] !border-[#2a4f7d] !rounded-2xl !shadow-lg !shadow-cyan-900/20 transition-all duration-300 hover:!-translate-y-1 hover:!border-cyan-300/40"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -677,8 +682,8 @@ export default function OrganizationDashboard() {
                     </div>
                     <Space wrap>
                       <Tag color={match.status === "finished" ? "default" : "green"}>{match.status}</Tag>
-                      <Button icon={<TeamOutlined />} onClick={() => openLineupDrawer(match)}>Escalação</Button>
-                      <Button icon={<CommentOutlined />} onClick={() => openCommentsModal(match)}>Comentários</Button>
+                      <Button className={actionButtonClass} icon={<TeamOutlined />} onClick={() => openLineupDrawer(match)}>Escalação</Button>
+                      <Button className={actionButtonClass} icon={<CommentOutlined />} onClick={() => openCommentsModal(match)}>Comentários</Button>
                     </Space>
                   </div>
                 </Card>
@@ -690,7 +695,7 @@ export default function OrganizationDashboard() {
         {activeTab === "ranking" && (
           <div className="space-y-4">
             <Space wrap>
-              <Input placeholder="Buscar jogador" value={rankingSearch} onChange={(e) => setRankingSearch(e.target.value)} />
+              <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" placeholder="Buscar jogador" value={rankingSearch} onChange={(e) => setRankingSearch(e.target.value)} />
               <Select
                 value={rankingPositionFilter}
                 onChange={setRankingPositionFilter}
@@ -698,7 +703,7 @@ export default function OrganizationDashboard() {
                   { label: "Todas as posições", value: "all" },
                   ...uniquePositions.map((position) => ({ label: position, value: position })),
                 ]}
-                style={{ minWidth: 220 }}
+                style={{ minWidth: 220 }} className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
               />
             </Space>
 
@@ -707,7 +712,7 @@ export default function OrganizationDashboard() {
                 <Col xs={24} md={12} lg={8} key={player.id}>
                   <Card
                     hoverable
-                    className="!bg-slate-900/80 !border-slate-700 !rounded-2xl"
+                    className="!bg-gradient-to-br !from-slate-900 !to-slate-800/90 !border-slate-600 !rounded-2xl !shadow-lg !shadow-black/30"
                     onClick={() => setSelectedPlayer(player)}
                   >
                     <Text className="!text-[#7ea3e5]">#{index + 1}</Text>
@@ -761,9 +766,9 @@ export default function OrganizationDashboard() {
                       <div className="flex items-start justify-between gap-2">
                         <Title level={4} className="!text-white !mb-1">{tournament.name}</Title>
                         <Space wrap>
-                          <Button onClick={() => navigate(`/dashboard/org/${orgId}/tournaments/${tournament.id}`)}>Ver página</Button>
-                          <Button onClick={() => viewTournamentMatches(tournament.id)}>Ver partidas</Button>
-                          <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateMatchForTournament(tournament.id)} disabled={!isAdmin || teamCount < 2}>
+                          <Button className={actionButtonClass} onClick={() => navigate(`/dashboard/org/${orgId}/tournaments/${tournament.id}`)}>Ver página</Button>
+                          <Button className={actionButtonClass} onClick={() => viewTournamentMatches(tournament.id)}>Ver partidas</Button>
+                          <Button className={primaryButtonClass} type="primary" icon={<PlusOutlined />} onClick={() => openCreateMatchForTournament(tournament.id)} disabled={!isAdmin || teamCount < 2}>
                             Criar partida
                           </Button>
                         </Space>
@@ -830,7 +835,7 @@ export default function OrganizationDashboard() {
             locale={{ emptyText: "Sem comentários ainda" }}
             renderItem={(comment) => (
               <List.Item
-                actions={comment.player_id === user?.id ? [<Button danger type="link" onClick={() => deleteComment(comment.id)}>Remover</Button>] : []}
+                actions={comment.player_id === user?.id ? [<Button danger type="link" className="!font-semibold" onClick={() => deleteComment(comment.id)}>Remover</Button>] : []}
               >
                 <List.Item.Meta
                   avatar={<Avatar src={comment.player?.avatar || undefined}>{comment.player?.name?.[0]}</Avatar>}
@@ -842,8 +847,8 @@ export default function OrganizationDashboard() {
           />
         )}
         <Space.Compact className="w-full mt-3">
-          <Input value={newComment} onChange={(event) => setNewComment(event.target.value)} placeholder="Comente a partida..." />
-          <Button type="primary" icon={<SendOutlined />} onClick={addComment}>Enviar</Button>
+          <Input className="!rounded-l-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" value={newComment} onChange={(event) => setNewComment(event.target.value)} placeholder="Comente a partida..." />
+          <Button className={primaryButtonClass} type="primary" icon={<SendOutlined />} onClick={addComment}>Enviar</Button>
         </Space.Compact>
       </Modal>
 
@@ -883,13 +888,13 @@ export default function OrganizationDashboard() {
 
             <Space wrap className="mb-3">
               {!isUserRegisteredInLineup ? (
-                <Button type="primary" onClick={registerInMatch}>Entrar na partida</Button>
+                <Button className={primaryButtonClass} type="primary" onClick={registerInMatch}>Entrar na partida</Button>
               ) : (
-                <Button danger onClick={leaveMatch}>Sair da partida</Button>
+                <Button className="!h-10 !rounded-xl !border-rose-400/40 !bg-rose-500/10 !px-4 !font-semibold !text-rose-200 hover:!bg-rose-500/20" danger onClick={leaveMatch}>Sair da partida</Button>
               )}
-              {isAdmin && <Button onClick={randomizeTeams}>Sortear times</Button>}
-              {isAdmin && <Button onClick={clearTeams}>Limpar times</Button>}
-              {isAdmin && <Button type="primary" onClick={saveLineup}>Salvar escalação</Button>}
+              {isAdmin && <Button className={actionButtonClass} onClick={randomizeTeams}>Sortear times</Button>}
+              {isAdmin && <Button className={actionButtonClass} onClick={clearTeams}>Limpar times</Button>}
+              {isAdmin && <Button className={primaryButtonClass} type="primary" onClick={saveLineup}>Salvar escalação</Button>}
             </Space>
 
             <Row gutter={12}>
@@ -899,7 +904,7 @@ export default function OrganizationDashboard() {
                     dataSource={lineupPlayers.filter((player) => teamAIds.includes(player.id))}
                     locale={{ emptyText: "Sem jogadores" }}
                     renderItem={(player) => (
-                      <List.Item actions={isAdmin ? [<Button type="link" onClick={() => movePlayerTo(player.id, "B")}>Mover</Button>] : []}>
+                      <List.Item actions={isAdmin ? [<Button type="link" className="!font-semibold !text-cyan-300" onClick={() => movePlayerTo(player.id, "B")}>Mover</Button>] : []}>
                         <Space>
                           <Text className="!text-white">{player.name}</Text>
                           <Tag color="green">OVR {player.pivot?.overall ?? 0}</Tag>
@@ -915,7 +920,7 @@ export default function OrganizationDashboard() {
                     dataSource={lineupPlayers.filter((player) => teamBIds.includes(player.id))}
                     locale={{ emptyText: "Sem jogadores" }}
                     renderItem={(player) => (
-                      <List.Item actions={isAdmin ? [<Button type="link" onClick={() => movePlayerTo(player.id, "A")}>Mover</Button>] : []}>
+                      <List.Item actions={isAdmin ? [<Button type="link" className="!font-semibold !text-cyan-300" onClick={() => movePlayerTo(player.id, "A")}>Mover</Button>] : []}>
                         <Space>
                           <Text className="!text-white">{player.name}</Text>
                           <Tag color="cyan">OVR {player.pivot?.overall ?? 0}</Tag>
@@ -934,8 +939,8 @@ export default function OrganizationDashboard() {
               renderItem={(player) => (
                 <List.Item
                   actions={isAdmin ? [
-                    <Button type="link" onClick={() => movePlayerTo(player.id, "A")}>Time A</Button>,
-                    <Button type="link" onClick={() => movePlayerTo(player.id, "B")}>Time B</Button>,
+                    <Button type="link" className="!font-semibold !text-emerald-300" onClick={() => movePlayerTo(player.id, "A")}>Time A</Button>,
+                    <Button type="link" className="!font-semibold !text-cyan-300" onClick={() => movePlayerTo(player.id, "B")}>Time B</Button>,
                   ] : []}
                 >
                   {player.name}
@@ -948,12 +953,13 @@ export default function OrganizationDashboard() {
 
       <Modal open={isCreateMatchOpen} onCancel={() => setIsCreateMatchOpen(false)} footer={null} title="Criar partida">
         <form className="space-y-3" onSubmit={submitCreateMatch}>
-          <Input value={newMatchName} onChange={(event) => setNewMatchName(event.target.value)} placeholder="Nome da partida" />
-          <Input type="date" value={newMatchDate} onChange={(event) => setNewMatchDate(event.target.value)} required />
+          <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" value={newMatchName} onChange={(event) => setNewMatchName(event.target.value)} placeholder="Nome da partida" />
+          <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" type="date" value={newMatchDate} onChange={(event) => setNewMatchDate(event.target.value)} required />
           <Select
             value={newMatchTournamentId}
             onChange={setNewMatchTournamentId}
             style={{ width: "100%" }}
+            className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
             options={[
               { value: "none", label: "Partida amistosa (sem torneio)" },
               ...tournaments.map((tournament) => ({ value: String(tournament.id), label: tournament.name })),
@@ -968,6 +974,7 @@ export default function OrganizationDashboard() {
                 value={newMatchTeamAId || undefined}
                 onChange={setNewMatchTeamAId}
                 style={{ width: "100%" }}
+                className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
                 options={selectedTournamentTeams.map((team) => ({ value: String(team.id), label: team.name }))}
               />
               <Select
@@ -975,6 +982,7 @@ export default function OrganizationDashboard() {
                 value={newMatchTeamBId || undefined}
                 onChange={setNewMatchTeamBId}
                 style={{ width: "100%" }}
+                className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
                 options={selectedTournamentTeams
                   .filter((team) => String(team.id) !== newMatchTeamAId)
                   .map((team) => ({ value: String(team.id), label: team.name }))}
@@ -982,19 +990,20 @@ export default function OrganizationDashboard() {
             </>
           )}
 
-          <Button type="primary" htmlType="submit" loading={isBusy} block>Criar partida</Button>
+          <Button className={primaryButtonClass} type="primary" htmlType="submit" loading={isBusy} block>Criar partida</Button>
         </form>
       </Modal>
 
       <Modal open={isCreateTournamentOpen} onCancel={() => setIsCreateTournamentOpen(false)} footer={null} title="Criar torneio">
         <form className="space-y-3" onSubmit={submitCreateTournament}>
-          <Input value={newTournamentName} onChange={(event) => setNewTournamentName(event.target.value)} placeholder="Nome" required />
+          <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" value={newTournamentName} onChange={(event) => setNewTournamentName(event.target.value)} placeholder="Nome" required />
           <Select
             value={newTournamentType}
+            className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
             onChange={(value) => setNewTournamentType(value as TournamentType)}
             options={[{ label: "Liga", value: "league" }, { label: "Mata-mata", value: "knockout" }]}
           />
-          <Input type="date" value={newTournamentStartDate} onChange={(event) => setNewTournamentStartDate(event.target.value)} />
+          <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" type="date" value={newTournamentStartDate} onChange={(event) => setNewTournamentStartDate(event.target.value)} />
           <Select
             mode="tags"
             value={newTournamentTeams}
@@ -1002,8 +1011,9 @@ export default function OrganizationDashboard() {
             tokenSeparators={[",", ";"]}
             placeholder="Times pré-cadastrados (mínimo 2)"
             style={{ width: "100%" }}
+            className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
           />
-          <Button type="primary" htmlType="submit" loading={isBusy} block>Criar torneio com times</Button>
+          <Button className={primaryButtonClass} type="primary" htmlType="submit" loading={isBusy} block>Criar torneio com times</Button>
         </form>
       </Modal>
     </div>

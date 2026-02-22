@@ -16,6 +16,7 @@ import {
   Spin,
   Statistic,
   Steps,
+  Table,
   Tag,
   Typography,
   message,
@@ -85,6 +86,11 @@ interface StandingRow {
 }
 
 const { Title, Text } = Typography;
+
+const actionButtonClass =
+  "!h-10 !rounded-xl !border-slate-500/40 !bg-slate-900/70 !px-4 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200";
+const primaryButtonClass =
+  "!h-10 !rounded-xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-4 !font-semibold !shadow-md !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300";
 
 const formatDateTimeLabel = (dateValue: string) => {
   const date = new Date(dateValue);
@@ -302,7 +308,7 @@ export default function TournamentDetails() {
       {contextHolder}
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/dashboard/org/${orgId}`)}>
+          <Button className={actionButtonClass} icon={<ArrowLeftOutlined />} onClick={() => navigate(`/dashboard/org/${orgId}`)}>
             Voltar
           </Button>
           <Tag color="blue">{tournament.type === "knockout" ? "Mata-mata" : "Liga"}</Tag>
@@ -325,7 +331,7 @@ export default function TournamentDetails() {
           title={<span className="text-white">Times cadastrados</span>}
           className="!rounded-2xl !bg-slate-900/80 !border-slate-700"
           extra={isAdmin ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => openTeamModal()}>
+            <Button className={primaryButtonClass} type="primary" icon={<PlusOutlined />} onClick={() => openTeamModal()}>
               Cadastrar time
             </Button>
           ) : undefined}
@@ -336,9 +342,9 @@ export default function TournamentDetails() {
             renderItem={(team) => (
               <List.Item
                 actions={isAdmin ? [
-                  <Button type="link" onClick={() => openTeamModal(team)}>Editar</Button>,
+                  <Button type="link" className="!font-semibold !text-cyan-300" onClick={() => openTeamModal(team)}>Editar</Button>,
                   <Popconfirm title="Remover time?" onConfirm={() => removeTeam(team.id)}>
-                    <Button type="link" danger>Remover</Button>
+                    <Button type="link" danger className="!font-semibold">Remover</Button>
                   </Popconfirm>,
                 ] : []}
               >
@@ -404,23 +410,21 @@ export default function TournamentDetails() {
           </Card>
         ) : (
           <Card title={<span className="text-white">Tabela (pontos corridos)</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
-            <List
-              dataSource={leagueTable}
+            <Table
+              dataSource={leagueTable.map((row, index) => ({ ...row, key: row.teamId, position: index + 1 }))}
+              pagination={false}
               locale={{ emptyText: "Sem times para montar tabela" }}
-              renderItem={(row, index) => (
-                <List.Item>
-                  <Space>
-                    <Tag color="gold">#{index + 1}</Tag>
-                    <Text className="!text-white min-w-[150px]">{row.teamName}</Text>
-                    <Tag>PTS {row.pts}</Tag>
-                    <Tag>PJ {row.pj}</Tag>
-                    <Tag>V {row.v}</Tag>
-                    <Tag>E {row.e}</Tag>
-                    <Tag>D {row.d}</Tag>
-                    <Tag>SG {row.sg}</Tag>
-                  </Space>
-                </List.Item>
-              )}
+              className="[&_.ant-table]:!bg-transparent [&_.ant-table-thead>tr>th]:!bg-slate-900 [&_.ant-table-thead>tr>th]:!text-slate-200 [&_.ant-table-tbody>tr>td]:!border-slate-700 [&_.ant-table-tbody>tr>td]:!bg-slate-950/40 [&_.ant-table-tbody>tr>td]:!text-slate-100"
+              columns={[
+                { title: '#', dataIndex: 'position', width: 60 },
+                { title: 'Time', dataIndex: 'teamName' },
+                { title: 'PTS', dataIndex: 'pts', width: 70 },
+                { title: 'PJ', dataIndex: 'pj', width: 70 },
+                { title: 'V', dataIndex: 'v', width: 60 },
+                { title: 'E', dataIndex: 'e', width: 60 },
+                { title: 'D', dataIndex: 'd', width: 60 },
+                { title: 'SG', dataIndex: 'sg', width: 70 },
+              ]}
             />
           </Card>
         )}
@@ -434,12 +438,13 @@ export default function TournamentDetails() {
       >
         <form className="space-y-3" onSubmit={handleSaveTeam}>
           <Input
+            className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100"
             value={teamName}
             onChange={(event) => setTeamName(event.target.value)}
             placeholder="Nome do time"
             required
           />
-          <Button type="primary" htmlType="submit" loading={isBusy} block>
+          <Button className={primaryButtonClass} type="primary" htmlType="submit" loading={isBusy} block>
             Salvar
           </Button>
         </form>
