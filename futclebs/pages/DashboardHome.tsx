@@ -1,7 +1,27 @@
 import { api } from "@/services/axios";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Card, Col, Empty, Input, Progress, Row, Select, Spin, Statistic, Switch, Tag, Tooltip, Typography } from "antd";
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  Empty,
+  Flex,
+  Input,
+  Layout,
+  Progress,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Spin,
+  Statistic,
+  Switch,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
 import {
   AppstoreOutlined,
   FilterOutlined,
@@ -29,6 +49,7 @@ type ViewMode = "grid" | "list";
 const FAVORITES_STORAGE_KEY = "futclebs.favorite.orgs";
 const DASHBOARD_PREFS_STORAGE_KEY = "futclebs.dashboard.prefs";
 const { Title, Text } = Typography;
+const { Content } = Layout;
 
 export default function DashboardHome() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -160,80 +181,41 @@ export default function DashboardHome() {
     const isFavorite = favorites.includes(org.id);
     const overall = org.stats?.overall ?? 0;
 
-    if (viewMode === "list") {
-      return (
-        <div
-          key={org.id}
-          onClick={() => navigate(`/dashboard/org/${org.id}`)}
-          className="dashboard-glow cursor-pointer bg-gradient-to-br from-slate-900/85 to-slate-950/90 border border-slate-700 rounded-2xl p-5 hover:border-emerald-500/40 transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-        >
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="text-lg font-semibold">{org.name}</h3>
+    return (
+      <Card
+        key={org.id}
+        hoverable
+        onClick={() => navigate(`/dashboard/org/${org.id}`)}
+        style={{ borderRadius: 20 }}
+        styles={{ body: { padding: 20 } }}
+        actions={[
+          <Button
+            key="favorite"
+            type="text"
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleFavorite(org.id);
+            }}
+            icon={isFavorite ? <StarFilled style={{ color: "#facc15" }} /> : <StarOutlined />}
+          >
+            {isFavorite ? "Favorita" : "Favoritar"}
+          </Button>,
+        ]}
+      >
+        <Flex justify="space-between" align="flex-start" gap={8}>
+          <Space direction="vertical" size={4}>
+            <Title level={4} style={{ margin: 0 }}>{org.name}</Title>
+            <Space wrap>
               {org.is_admin && <Tag color="gold">ADMIN</Tag>}
               {isFavorite && <Tag color="purple">FAVORITA</Tag>}
-            </div>
-            <p className="text-slate-400 text-sm max-w-2xl">
-              {org.description || "Sem descrição disponível."}
-            </p>
-          </div>
+            </Space>
+          </Space>
+          <Badge count={`OVR ${overall}`} color="#34d399" />
+        </Flex>
 
-          <div className="flex items-center gap-4">
-            <div className="text-right min-w-24">
-              <div className="text-xs text-slate-400">Overall</div>
-              <div className="text-emerald-400 font-semibold text-xl">{overall}</div>
-            </div>
-            <Button
-              type="text"
-              className="!text-yellow-300 hover:!bg-yellow-500/10 !rounded-xl"
-              onClick={(event) => {
-                event.stopPropagation();
-                toggleFavorite(org.id);
-              }}
-              icon={isFavorite ? <StarFilled /> : <StarOutlined />}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        key={org.id}
-        onClick={() => navigate(`/dashboard/org/${org.id}`)}
-        className="dashboard-glow cursor-pointer bg-gradient-to-b from-slate-900/70 to-slate-950/90 backdrop-blur-xl border border-slate-700 rounded-3xl p-6 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group"
-      >
-        <div className="flex justify-between items-start mb-4 gap-2">
-          <div className="space-y-2">
-            <h3 className="text-xl font-semibold group-hover:text-emerald-400 transition">{org.name}</h3>
-            <div className="flex gap-2 flex-wrap">
-              {org.is_admin && <Tag color="gold">ADMIN</Tag>}
-              {favorites.includes(org.id) && <Tag color="purple">FAVORITA</Tag>}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {org.stats?.overall !== undefined && (
-              <div className="px-3 py-1 text-sm rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold">
-                {org.stats.overall}
-              </div>
-            )}
-            <Button
-              type="text"
-              className="!text-yellow-300 hover:!bg-yellow-500/10 !rounded-xl"
-              onClick={(event) => {
-                event.stopPropagation();
-                toggleFavorite(org.id);
-              }}
-              icon={favorites.includes(org.id) ? <StarFilled /> : <StarOutlined />}
-            />
-          </div>
-        </div>
-
-        <p className="text-slate-400 text-sm leading-relaxed">{org.description || "Sem descrição disponível."}</p>
-
-        <div className="mt-5">
-          <div className="text-xs text-slate-400 mb-1">Progresso competitivo</div>
+        <Text type="secondary">{org.description || "Sem descrição disponível."}</Text>
+        <div style={{ marginTop: 14 }}>
+          <Text type="secondary">Progresso competitivo</Text>
           <Progress
             percent={Math.max(0, Math.min(100, overall))}
             showInfo={false}
@@ -241,124 +223,118 @@ export default function DashboardHome() {
             trailColor="#1f2937"
           />
         </div>
-
-        <div className="mt-5 text-sm text-emerald-400 opacity-0 group-hover:opacity-100 transition">Entrar →</div>
-      </div>
+      </Card>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#020617] via-[#020b1d] to-[#050d23] text-white">
+    <Layout style={{ minHeight: "100vh", background: "transparent" }}>
       <UniversalNavbar />
-
-      <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        <div className="dashboard-glow relative overflow-hidden bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8 shadow-xl shadow-black/30">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <Title level={2} className="!text-white !m-0">Home Dashboard Futclebs</Title>
-              <Text className="!text-slate-300 mt-2 block max-w-2xl">Gerencie suas organizações com filtros inteligentes, favoritos e visão competitiva em um layout mais moderno.</Text>
-            </div>
-
-            <div className="flex gap-3 flex-wrap">
-              <Button onClick={() => setJoinOpen(true)} className="!h-11 !rounded-2xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-5 !font-semibold !shadow-lg !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300" type="primary">
+      <Content style={{ maxWidth: 1200, width: "100%", margin: "0 auto", padding: "30px 16px 40px" }}>
+        <Card style={{ marginBottom: 18, borderRadius: 24 }}>
+          <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
+            <Space direction="vertical" size={4}>
+              <Title level={2} style={{ margin: 0 }}>Home Dashboard Futclebs</Title>
+              <Text type="secondary">Gerencie suas organizações com filtros inteligentes e visual moderno.</Text>
+            </Space>
+            <Space>
+              <Button type="primary" size="large" onClick={() => setJoinOpen(true)}>
                 ➕ Entrar em Organização
               </Button>
-              <Button onClick={fetchMyOrgs} className="!h-11 !rounded-2xl !border-slate-500/40 !bg-slate-900/70 !px-5 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200" icon={<ReloadOutlined />}>
+              <Button size="large" icon={<ReloadOutlined />} onClick={fetchMyOrgs}>
                 Atualizar
               </Button>
-            </div>
-          </div>
-        </div>
+            </Space>
+          </Flex>
+        </Card>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Organizações" value={dashboardStats.total} /></Card></Col>
-          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Admin em" value={dashboardStats.adminCount} /></Card></Col>
-          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Overall médio" value={dashboardStats.avgOverall} valueStyle={{ color: '#34d399' }} /></Card></Col>
-          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Favoritas" value={dashboardStats.favoritesCount} valueStyle={{ color: '#facc15' }} /></Card></Col>
+        <Row gutter={[16, 16]} style={{ marginBottom: 18 }}>
+          <Col xs={24} md={12} lg={6}><Card><Statistic title="Organizações" value={dashboardStats.total} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card><Statistic title="Admin em" value={dashboardStats.adminCount} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card><Statistic title="Overall médio" value={dashboardStats.avgOverall} valueStyle={{ color: '#34d399' }} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card><Statistic title="Favoritas" value={dashboardStats.favoritesCount} valueStyle={{ color: '#facc15' }} /></Card></Col>
         </Row>
 
         {strongestOrganization && (
-          <div onClick={() => navigate(`/dashboard/org/${strongestOrganization.id}`)} className="cursor-pointer bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-400/20 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-emerald-300/40 transition">
-            <div>
-              <div className="text-emerald-300 text-sm flex items-center gap-2"><TrophyOutlined /> Destaque do seu elenco</div>
-              <div className="text-lg font-semibold">{strongestOrganization.name}</div>
-            </div>
-            <div className="flex items-center gap-3"><Tag color="green">Overall {strongestOrganization.stats?.overall ?? 0}</Tag><span className="text-emerald-300 text-sm">Abrir →</span></div>
-          </div>
+          <Card style={{ marginBottom: 18, borderRadius: 16 }} onClick={() => navigate(`/dashboard/org/${strongestOrganization.id}`)} hoverable>
+            <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
+              <Text><TrophyOutlined /> Destaque: <strong>{strongestOrganization.name}</strong></Text>
+              <Tag color="green">Overall {strongestOrganization.stats?.overall ?? 0}</Tag>
+            </Flex>
+          </Card>
         )}
 
-        <div className="dashboard-glow bg-gradient-to-b from-slate-900/85 to-slate-950/90 border border-slate-700/80 rounded-2xl p-4 space-y-4 shadow-lg shadow-black/30">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-slate-300"><span className="flex items-center gap-2"><FilterOutlined /> Filtros inteligentes</span><span className="text-xs text-slate-400">{filteredOrganizations.length} organização(ões) exibida(s)</span></div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-3">
-            <Input
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Buscar por nome ou descrição"
-              prefix={<SearchOutlined />}
-              className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100"
-            />
+        <Card style={{ marginBottom: 18, borderRadius: 16 }}>
+          <Space direction="vertical" size={14} style={{ width: "100%" }}>
+            <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
+              <Text><FilterOutlined /> Filtros</Text>
+              <Text type="secondary">{filteredOrganizations.length} organização(ões)</Text>
+            </Flex>
 
-            <Select
-              value={sortOption}
-              onChange={(value) => setSortOption(value)}
-              className="w-full [&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
-              options={[
-                { value: "overall-desc", label: "Overall (maior → menor)" },
-                { value: "overall-asc", label: "Overall (menor → maior)" },
-                { value: "name-asc", label: "Nome (A → Z)" },
-                { value: "name-desc", label: "Nome (Z → A)" },
-              ]}
-            />
-
-            <div className="flex items-center justify-between px-3 rounded-xl border border-slate-700 bg-slate-950/50">
-              <span className="text-sm text-slate-300">Só admin</span>
-              <Switch checked={adminsOnly} onChange={setAdminsOnly} />
-            </div>
-
-            <div className="flex items-center justify-between px-3 rounded-xl border border-slate-700 bg-slate-950/50">
-              <span className="text-sm text-slate-300">Só favoritas</span>
-              <Switch checked={onlyFavorites} onChange={setOnlyFavorites} />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Tooltip title="Visualização em grade">
-                <Button
-                  onClick={() => setViewMode("grid")}
-                  type={viewMode === "grid" ? "primary" : "default"}
-                  icon={<AppstoreOutlined />} className="!h-10 !w-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60"
+            <Row gutter={[12, 12]}>
+              <Col xs={24} md={12} lg={8}>
+                <Input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar por nome ou descrição"
+                  prefix={<SearchOutlined />}
                 />
-              </Tooltip>
-              <Tooltip title="Visualização em lista">
-                <Button
-                  onClick={() => setViewMode("list")}
-                  type={viewMode === "list" ? "primary" : "default"}
-                  icon={<UnorderedListOutlined />} className="!h-10 !w-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60"
+              </Col>
+              <Col xs={24} md={12} lg={8}>
+                <Select
+                  value={sortOption}
+                  onChange={(value) => setSortOption(value)}
+                  style={{ width: "100%" }}
+                  options={[
+                    { value: "overall-desc", label: "Overall (maior → menor)" },
+                    { value: "overall-asc", label: "Overall (menor → maior)" },
+                    { value: "name-asc", label: "Nome (A → Z)" },
+                    { value: "name-desc", label: "Nome (Z → A)" },
+                  ]}
                 />
-              </Tooltip>
-              <Button onClick={resetFilters} className="!h-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60 !px-4 !text-slate-100">Limpar</Button>
-            </div>
-          </div>
-        </div>
+              </Col>
+              <Col xs={24} md={12} lg={8}>
+                <Flex justify="space-between" align="center" style={{ height: "100%" }}>
+                  <Space>
+                    <Text>Só admin</Text>
+                    <Switch checked={adminsOnly} onChange={setAdminsOnly} />
+                  </Space>
+                  <Space>
+                    <Text>Só favoritas</Text>
+                    <Switch checked={onlyFavorites} onChange={setOnlyFavorites} />
+                  </Space>
+                </Flex>
+              </Col>
+            </Row>
+
+            <Flex justify="space-between" wrap="wrap" gap={8}>
+              <Segmented
+                value={viewMode}
+                onChange={(value) => setViewMode(value as ViewMode)}
+                options={[
+                  { label: <Tooltip title="Grade"><AppstoreOutlined /></Tooltip>, value: "grid" },
+                  { label: <Tooltip title="Lista"><UnorderedListOutlined /></Tooltip>, value: "list" },
+                ]}
+              />
+              <Button onClick={resetFilters}>Limpar filtros</Button>
+            </Flex>
+          </Space>
+        </Card>
 
         {loading ? (
-          <div className="text-center py-20 text-slate-400">
-            <Spin size="large" />
-          </div>
+          <Flex justify="center" style={{ padding: 60 }}><Spin size="large" /></Flex>
         ) : filteredOrganizations.length === 0 ? (
-          <Card className="!text-center !py-10 !rounded-3xl">
+          <Card style={{ borderRadius: 16 }}>
             <Empty description="Nenhum resultado encontrado" />
-            <Text className="!text-slate-400 !mb-6 block">Ajuste os filtros ou entre em uma nova organização.</Text>
-            <div className="flex items-center justify-center gap-3">
-              <Button onClick={resetFilters} className="!h-11 !rounded-2xl !border-slate-500/40 !bg-slate-900/70 !px-6 !text-slate-100">Limpar filtros</Button>
-              <Button onClick={() => setJoinOpen(true)} className="!h-11 !rounded-2xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-6 !font-semibold !shadow-lg !shadow-emerald-500/20 hover:!from-emerald-300 hover:!to-cyan-300" type="primary">
-                Buscar Organizações
-              </Button>
-            </div>
           </Card>
         ) : (
-          <div className={viewMode === "grid" ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
-            {filteredOrganizations.map(renderOrganizationCard)}
-          </div>
+          <Row gutter={[16, 16]}>
+            {filteredOrganizations.map((org) => (
+              <Col xs={24} md={viewMode === "grid" ? 12 : 24} lg={viewMode === "grid" ? 8 : 24} key={org.id}>
+                {renderOrganizationCard(org)}
+              </Col>
+            ))}
+          </Row>
         )}
 
         <JoinOrganizationModal
@@ -368,7 +344,7 @@ export default function DashboardHome() {
             await fetchMyOrgs();
           }}
         />
-      </div>
-    </div>
+      </Content>
+    </Layout>
   );
 }
