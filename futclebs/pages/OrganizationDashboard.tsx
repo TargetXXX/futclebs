@@ -35,6 +35,7 @@ import {
   TrophyOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
 
 type MatchStatus = "open" | "in_progress" | "finished";
 type DashboardTab = "open" | "pending" | "finished" | "ranking" | "tournaments";
@@ -236,9 +237,9 @@ export default function OrganizationDashboard() {
   const userOverall = userOnOrg?.pivot?.overall ?? 0;
   const isAdmin = Boolean(userOnOrg?.pivot?.is_admin);
   const actionButtonClass =
-    "!h-10 !rounded-xl !border-slate-500/40 !bg-slate-900/70 !px-4 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200";
+    "!h-10 !rounded-xl !border-slate-500/40 !bg-slate-900/70 !px-4 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200 hover:!shadow-[0_0_20px_rgba(34,211,238,0.18)]";
   const primaryButtonClass =
-    "!h-10 !rounded-xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-4 !font-semibold !shadow-md !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300";
+    "!h-10 !rounded-xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-4 !font-semibold !shadow-md !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300 hover:!shadow-[0_0_24px_rgba(45,212,191,0.35)]";
 
   const openMatches = useMemo(() => matches.filter((match) => match.status !== "finished"), [matches]);
   const finishedMatches = useMemo(() => matches.filter((match) => match.status === "finished"), [matches]);
@@ -594,7 +595,8 @@ export default function OrganizationDashboard() {
   const isUserRegisteredInLineup = lineupPlayers.some((player) => player.id === user?.id);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3d] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#050d23] text-white">
+      <UniversalNavbar />
       {contextHolder}
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -626,7 +628,7 @@ export default function OrganizationDashboard() {
           </Space>
         </div>
 
-        <Card className="!bg-gradient-to-r !from-[#1e9d72] !to-[#1572a6] !border-0 !rounded-2xl">
+        <Card className="dashboard-glow !bg-gradient-to-r !from-[#0f6f52] !via-[#0b4e78] !to-[#123a70] !border !border-cyan-300/20 !rounded-2xl !shadow-xl !shadow-cyan-950/30">
           <Row gutter={[16, 16]} align="middle">
             <Col xs={24} md={16}>
               <Text className="!text-emerald-100 !uppercase">Seu nível</Text>
@@ -642,7 +644,7 @@ export default function OrganizationDashboard() {
           </Row>
         </Card>
 
-        <Segmented className="[&_.ant-segmented-group]:!gap-1 [&_.ant-segmented-item]:!rounded-xl [&_.ant-segmented-item-selected]:!bg-cyan-500/25 [&_.ant-segmented-item]:!text-slate-200" block options={tabItems} value={activeTab} onChange={(value) => setActiveTab(value as DashboardTab)} />
+        <Segmented className="dashboard-glow [&_.ant-segmented-group]:!gap-1 [&_.ant-segmented-item]:!rounded-xl [&_.ant-segmented-item]:!font-semibold [&_.ant-segmented-item]:!tracking-wide [&_.ant-segmented-item]:!text-slate-200" block options={tabItems} value={activeTab} onChange={(value) => setActiveTab(value as DashboardTab)} />
 
         {(activeTab === "open" || activeTab === "finished" || activeTab === "pending") && (
           <div className="grid gap-4">
@@ -712,7 +714,7 @@ export default function OrganizationDashboard() {
                 <Col xs={24} md={12} lg={8} key={player.id}>
                   <Card
                     hoverable
-                    className="!bg-gradient-to-br !from-slate-900 !to-slate-800/90 !border-slate-600 !rounded-2xl !shadow-lg !shadow-black/30"
+                    className="dashboard-glow !bg-gradient-to-br !from-slate-900 !via-slate-900 !to-[#111a34] !border-slate-600 !rounded-2xl !shadow-lg !shadow-black/30 hover:!border-emerald-300/30"
                     onClick={() => setSelectedPlayer(player)}
                   >
                     <Text className="!text-[#7ea3e5]">#{index + 1}</Text>
@@ -806,18 +808,42 @@ export default function OrganizationDashboard() {
 
       <Modal open={Boolean(selectedPlayer)} onCancel={() => setSelectedPlayer(null)} footer={null} title={selectedPlayer?.name}>
         {selectedPlayer && (
-          <List
-            size="small"
-            dataSource={[
-              `Posição: ${selectedPlayer.primary_position || "Linha"}`,
-              `OVR: ${selectedPlayer.pivot?.overall ?? 0}`,
-              `Gols: ${selectedPlayer.goals_total ?? 0}`,
-              `Assistências: ${selectedPlayer.assists_total ?? 0}`,
-              `Passe: ${selectedPlayer.pivot?.passe ?? 0}`,
-              `Drible: ${selectedPlayer.pivot?.drible ?? 0}`,
-            ]}
-            renderItem={(item) => <List.Item>{item}</List.Item>}
-          />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "OVR", value: selectedPlayer.pivot?.overall ?? 0, color: "text-emerald-300" },
+                { label: "Posição", value: selectedPlayer.primary_position || "Linha", color: "text-cyan-300" },
+                { label: "Gols", value: selectedPlayer.goals_total ?? 0, color: "text-amber-300" },
+                { label: "Assistências", value: selectedPlayer.assists_total ?? 0, color: "text-indigo-300" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
+                  <Text className="!text-slate-400 !text-xs !uppercase">{item.label}</Text>
+                  <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+            <List
+              size="small"
+              dataSource={[
+                { label: "Passe", value: selectedPlayer.pivot?.passe ?? 0 },
+                { label: "Drible", value: selectedPlayer.pivot?.drible ?? 0 },
+                { label: "Defesa", value: selectedPlayer.pivot?.defesa ?? 0 },
+                { label: "Finalização", value: selectedPlayer.pivot?.finalizacao ?? 0 },
+                { label: "Físico", value: selectedPlayer.pivot?.fisico ?? 0 },
+              ]}
+              renderItem={(item) => (
+                <List.Item>
+                  <div className="w-full">
+                    <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
+                      <span>{item.label}</span>
+                      <span className="font-semibold text-emerald-300">{item.value}</span>
+                    </div>
+                    <Progress percent={Math.min(Number(item.value) * 20, 100)} showInfo={false} strokeColor="#34d399" trailColor="#1e293b" />
+                  </div>
+                </List.Item>
+              )}
+            />
+          </div>
         )}
       </Modal>
 
