@@ -7,11 +7,47 @@ export const api = axios.create({
   },
 });
 
+const ORG_AWARE_PATHS = ["/tournaments", "/teams", "/matches"];
+
+const getOrganizationId = () => {
+  if (typeof window === "undefined") return null;
+
+  const fromStorage = localStorage.getItem("orgId");
+  if (fromStorage && Number(fromStorage) > 0) return Number(fromStorage);
+
+  const match = window.location.pathname.match(/\/dashboard\/org\/(\d+)/);
+  if (!match?.[1]) return null;
+
+  const fromPath = Number(match[1]);
+  return Number.isFinite(fromPath) && fromPath > 0 ? fromPath : null;
+};
+
+const shouldInjectOrganizationId = (url?: string) =>
+  Boolean(url && ORG_AWARE_PATHS.some((segment) => url.includes(segment)));
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (shouldInjectOrganizationId(config.url)) {
+    const organizationId = getOrganizationId();
+
+    if (organizationId) {
+      config.params = {
+        ...(config.params ?? {}),
+        organization_id: organizationId,
+      };
+
+      if (config.data && typeof config.data === "object" && !Array.isArray(config.data)) {
+        config.data = {
+          ...config.data,
+          organization_id: config.data.organization_id ?? organizationId,
+        };
+      }
+    }
   }
 
   return config;

@@ -145,6 +145,7 @@ export default function TournamentDetails() {
   };
 
   useEffect(() => {
+    if (orgId) localStorage.setItem("orgId", orgId);
     fetchData();
   }, [orgId, tournamentId]);
 
@@ -282,7 +283,7 @@ export default function TournamentDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <Spin size="large" />
       </div>
     );
@@ -290,14 +291,14 @@ export default function TournamentDetails() {
 
   if (!tournament) {
     return (
-      <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         Torneio não encontrado.
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#030a1e] via-[#06193f] to-[#03142e] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3d] text-white">
       {contextHolder}
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <Space>
@@ -307,9 +308,9 @@ export default function TournamentDetails() {
           <Tag color="blue">{tournament.type === "knockout" ? "Mata-mata" : "Liga"}</Tag>
         </Space>
 
-        <Card className="!bg-[#071737] !border-[#214378] !rounded-2xl">
+        <Card className="!bg-slate-900/80 !border-slate-700 !rounded-2xl !shadow-xl !shadow-black/20">
           <Title level={3} className="!text-white !mb-1">{tournament.name}</Title>
-          <Text className="!text-[#9ab7ea]">
+          <Text className="!text-slate-300">
             Página do torneio com gerenciamento de times, histórico de partidas e visualização {tournament.type === "knockout" ? "da chave" : "da tabela"}.
           </Text>
         </Card>
@@ -322,7 +323,7 @@ export default function TournamentDetails() {
 
         <Card
           title={<span className="text-white">Times cadastrados</span>}
-          className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]"
+          className="!rounded-2xl !bg-slate-900/80 !border-slate-700"
           extra={isAdmin ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => openTeamModal()}>
               Cadastrar time
@@ -347,7 +348,7 @@ export default function TournamentDetails() {
           />
         </Card>
 
-        <Card title={<span className="text-white">Histórico de partidas</span>} className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]">
+        <Card title={<span className="text-white">Histórico de partidas</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
           <List
             dataSource={sortedMatches}
             locale={{ emptyText: "Sem partidas cadastradas para este torneio" }}
@@ -361,7 +362,7 @@ export default function TournamentDetails() {
                 <List.Item>
                   <Space direction="vertical" size={0}>
                     <Text className="!text-white">{teamA?.name ?? "Time A"} x {teamB?.name ?? "Time B"}</Text>
-                    <Text className="!text-[#9ab7ea]">{formatDateTimeLabel(match.match_date)}</Text>
+                    <Text className="!text-slate-300">{formatDateTimeLabel(match.match_date)}</Text>
                     <Space>
                       <Tag color={match.status === "finished" ? "green" : "blue"}>{match.status}</Tag>
                       {typeof goalsA === "number" && typeof goalsB === "number" && (
@@ -376,7 +377,7 @@ export default function TournamentDetails() {
         </Card>
 
         {tournament.type === "knockout" ? (
-          <Card title={<span className="text-white">Chave mata-mata</span>} className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]">
+          <Card title={<span className="text-white">Chave mata-mata</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
             {knockoutRounds.length === 0 ? (
               <Empty description="Sem confrontos para montar chave" />
             ) : (
@@ -402,7 +403,7 @@ export default function TournamentDetails() {
             />
           </Card>
         ) : (
-          <Card title={<span className="text-white">Tabela (pontos corridos)</span>} className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]">
+          <Card title={<span className="text-white">Tabela (pontos corridos)</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
             <List
               dataSource={leagueTable}
               locale={{ emptyText: "Sem times para montar tabela" }}
