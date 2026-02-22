@@ -5,6 +5,7 @@ import DashboardHome from "./pages/DashboardHome";
 import Login from "./pages/Login";
 import JoinOrganization from "./pages/JoinOrganization";
 import Register from "./pages/Register";
+import TournamentDetails from "./pages/TournamentDetails";
 
 function App() {
   return (
@@ -27,6 +28,15 @@ function App() {
           element={
             <PrivateRoute>
               <OrganizationDashboard />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard/org/:orgId/tournaments/:tournamentId"
+          element={
+            <PrivateRoute>
+              <TournamentDetails />
             </PrivateRoute>
           }
         />
