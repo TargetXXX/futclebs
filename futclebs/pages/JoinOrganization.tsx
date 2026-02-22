@@ -1,6 +1,6 @@
 import { api } from "@/services/axios";
 import { ArrowLeftOutlined, LockOutlined, SearchOutlined, TeamOutlined } from "@ant-design/icons";
-import { Alert, Button, Card, Empty, Input, List, Space, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Empty, Flex, Input, Layout, List, Space, Tag, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -12,6 +12,7 @@ interface OrganizationOption {
 }
 
 const { Title, Text } = Typography;
+const { Content } = Layout;
 
 export default function JoinOrganization() {
   const navigate = useNavigate();
@@ -60,10 +61,7 @@ export default function JoinOrganization() {
 
     setJoining(true);
     try {
-      await api.post(`/me/organizations/${selectedOrg.id}/join`, {
-        password,
-      });
-
+      await api.post(`/me/organizations/${selectedOrg.id}/join`, { password });
       messageApi.success(`Agora você faz parte da organização ${selectedOrg.name}!`);
       setSelectedOrg(null);
       setPassword("");
@@ -75,38 +73,30 @@ export default function JoinOrganization() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <Layout style={{ minHeight: "100vh", background: "transparent" }}>
       {contextHolder}
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-6">
-        <Space>
+      <Content style={{ maxWidth: 920, margin: "0 auto", width: "100%", padding: "28px 16px 40px" }}>
+        <Space style={{ marginBottom: 14 }}>
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/dashboard")}>Voltar</Button>
           <Tag color="blue">Acesso por convite</Tag>
         </Space>
 
-        <Card className="!rounded-3xl !border-slate-700 !bg-slate-900/80">
+        <Card style={{ borderRadius: 20, marginBottom: 14 }}>
           <Space direction="vertical" size={2}>
-            <Title level={2} className="!mb-0 !text-white">Entrar em organização</Title>
-            <Text className="!text-slate-300">
-              Procure o grupo, selecione e informe a senha para desbloquear o acesso ao painel da organização.
-            </Text>
+            <Title level={2} style={{ marginBottom: 0 }}>Entrar em organização</Title>
+            <Text type="secondary">Pesquise o grupo e informe a senha para liberar seu acesso.</Text>
           </Space>
-
           <Input
             size="large"
-            className="mt-5"
+            style={{ marginTop: 16 }}
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Pesquisar por nome ou descrição"
-            prefix={<SearchOutlined className="text-slate-400" />}
+            prefix={<SearchOutlined />}
           />
-        <Text className="!text-slate-400">Mostrando primeiro organizações ativas para facilitar sua escolha.</Text>
         </Card>
 
-        <Card
-          title={<span className="text-white">Organizações disponíveis</span>}
-          className="!rounded-3xl !border-slate-700 !bg-slate-900/70"
-          loading={loading}
-        >
+        <Card title="Organizações disponíveis" style={{ borderRadius: 20 }} loading={loading}>
           {filtered.length === 0 ? (
             <Empty description="Nenhuma organização encontrada" />
           ) : (
@@ -116,25 +106,27 @@ export default function JoinOrganization() {
                 const isSelected = selectedOrg?.id === org.id;
                 return (
                   <List.Item>
-                    <div
-                      onClick={() => org.active === false ? null : setSelectedOrg(org)}
-                      className={`w-full cursor-pointer rounded-2xl border p-4 transition-all ${
-                        isSelected
-                          ? "border-emerald-500/50 bg-emerald-500/10"
-                          : "border-slate-700 bg-slate-800/60 hover:border-sky-500/50"
-                      }`}
+                    <Card
+                      size="small"
+                      onClick={() => (org.active === false ? null : setSelectedOrg(org))}
+                      style={{
+                        width: "100%",
+                        cursor: org.active === false ? "not-allowed" : "pointer",
+                        borderRadius: 14,
+                        borderColor: isSelected ? "#34d399" : undefined,
+                      }}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <Flex justify="space-between" align="center">
                         <Space>
-                          <TeamOutlined className="text-cyan-300" />
+                          <TeamOutlined />
                           <div>
-                            <div className="font-semibold text-white">{org.name}</div>
-                            <div className="text-slate-300 text-xs">{org.description || "Sem descrição"}</div>
+                            <div style={{ fontWeight: 600 }}>{org.name}</div>
+                            <Text type="secondary">{org.description || "Sem descrição"}</Text>
                           </div>
                         </Space>
                         {org.active === false ? <Tag color="red">Inativa</Tag> : <Tag color="green">Ativa</Tag>}
-                      </div>
-                    </div>
+                      </Flex>
+                    </Card>
                   </List.Item>
                 );
               }}
@@ -143,8 +135,8 @@ export default function JoinOrganization() {
         </Card>
 
         {selectedOrg && (
-          <Card className="!rounded-3xl !border-emerald-500/30 !bg-emerald-500/10">
-            <Space direction="vertical" className="w-full" size="middle">
+          <Card style={{ borderRadius: 20, marginTop: 14 }}>
+            <Space direction="vertical" style={{ width: "100%" }} size="middle">
               <Alert
                 type="info"
                 showIcon
@@ -154,7 +146,7 @@ export default function JoinOrganization() {
 
               <Input.Password
                 size="large"
-                prefix={<LockOutlined className="text-slate-400" />}
+                prefix={<LockOutlined />}
                 placeholder="Senha da organização"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
@@ -166,7 +158,7 @@ export default function JoinOrganization() {
             </Space>
           </Card>
         )}
-      </div>
-    </div>
+      </Content>
+    </Layout>
   );
 }
