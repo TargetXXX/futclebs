@@ -1,5 +1,5 @@
 <?php
-
+namespace App\Services;
 class MatchCommentService
 {
     public function create($match, $player, array $data)

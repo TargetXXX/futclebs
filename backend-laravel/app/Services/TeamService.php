@@ -2,7 +2,8 @@
 
 namespace App\Services;
 
-use Team;
+use App\Models\Team;
+
 
 
 class TeamService

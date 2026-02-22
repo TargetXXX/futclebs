@@ -2,9 +2,9 @@
 namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\MatchComment\StoreMatchCommentRequest;
+use App\Models\MatchComment;
 use App\Models\MatchModel;
-use MatchComment;
-use MatchCommentService;
+use App\Services\MatchCommentService;
 
 class MatchCommentController extends Controller
 {
