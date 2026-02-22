@@ -184,7 +184,7 @@ export default function DashboardHome() {
             </div>
             <Button
               type="text"
-              className="!text-yellow-400"
+              className="!text-yellow-300 hover:!bg-yellow-500/10 !rounded-xl"
               onClick={(event) => {
                 event.stopPropagation();
                 toggleFavorite(org.id);
@@ -219,7 +219,7 @@ export default function DashboardHome() {
             )}
             <Button
               type="text"
-              className="!text-yellow-400"
+              className="!text-yellow-300 hover:!bg-yellow-500/10 !rounded-xl"
               onClick={(event) => {
                 event.stopPropagation();
                 toggleFavorite(org.id);
@@ -261,10 +261,10 @@ export default function DashboardHome() {
             </div>
 
             <div className="flex gap-3 flex-wrap">
-              <Button onClick={() => setJoinOpen(true)} className="rounded-2xl bg-emerald-500 text-white" type="primary">
+              <Button onClick={() => setJoinOpen(true)} className="!h-11 !rounded-2xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-5 !font-semibold !shadow-lg !shadow-emerald-500/25 hover:!from-emerald-300 hover:!to-cyan-300" type="primary">
                 ➕ Entrar em Organização
               </Button>
-              <Button onClick={fetchMyOrgs} className="rounded-2xl" icon={<ReloadOutlined />}>
+              <Button onClick={fetchMyOrgs} className="!h-11 !rounded-2xl !border-slate-500/40 !bg-slate-900/70 !px-5 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200" icon={<ReloadOutlined />}>
                 Atualizar
               </Button>
             </div>
@@ -308,13 +308,13 @@ export default function DashboardHome() {
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar por nome ou descrição"
               prefix={<SearchOutlined />}
-              className="rounded-xl"
+              className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100"
             />
 
             <Select
               value={sortOption}
               onChange={(value) => setSortOption(value)}
-              className="w-full"
+              className="w-full [&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
               options={[
                 { value: "overall-desc", label: "Overall (maior → menor)" },
                 { value: "overall-asc", label: "Overall (menor → maior)" },
@@ -338,17 +338,17 @@ export default function DashboardHome() {
                 <Button
                   onClick={() => setViewMode("grid")}
                   type={viewMode === "grid" ? "primary" : "default"}
-                  icon={<AppstoreOutlined />}
+                  icon={<AppstoreOutlined />} className="!h-10 !w-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60"
                 />
               </Tooltip>
               <Tooltip title="Visualização em lista">
                 <Button
                   onClick={() => setViewMode("list")}
                   type={viewMode === "list" ? "primary" : "default"}
-                  icon={<UnorderedListOutlined />}
+                  icon={<UnorderedListOutlined />} className="!h-10 !w-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60"
                 />
               </Tooltip>
-              <Button onClick={resetFilters}>Limpar</Button>
+              <Button onClick={resetFilters} className="!h-10 !rounded-xl !border-slate-500/40 !bg-slate-950/60 !px-4 !text-slate-100">Limpar</Button>
             </div>
           </div>
         </div>
@@ -362,8 +362,8 @@ export default function DashboardHome() {
             <h2 className="text-xl font-semibold mb-3">Nenhum resultado encontrado</h2>
             <p className="text-slate-400 mb-6">Ajuste os filtros ou entre em uma nova organização.</p>
             <div className="flex items-center justify-center gap-3">
-              <Button onClick={resetFilters}>Limpar filtros</Button>
-              <Button onClick={() => setJoinOpen(true)} className="px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition font-semibold shadow-lg shadow-emerald-500/20" type="primary">
+              <Button onClick={resetFilters} className="!h-11 !rounded-2xl !border-slate-500/40 !bg-slate-900/70 !px-6 !text-slate-100">Limpar filtros</Button>
+              <Button onClick={() => setJoinOpen(true)} className="!h-11 !rounded-2xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-6 !font-semibold !shadow-lg !shadow-emerald-500/20 hover:!from-emerald-300 hover:!to-cyan-300" type="primary">
                 Buscar Organizações
               </Button>
             </div>
