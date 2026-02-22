@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
 export const useAvatar = (userId: string) => {
+  const DEFAULT_CROP_SIZE = 176;
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarSrc, setAvatarSrc] = useState<string | null>(null);
   const [cropX, setCropX] = useState(0);
@@ -10,7 +11,11 @@ export const useAvatar = (userId: string) => {
 
   const cropBoxRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<any>(null);
-  const imageSizeRef = useRef({ width: 0, height: 0 });
+  const imageSizeRef = useRef({ width: 0, height: 0, baseScale: 1 });
+
+  const getCropSize = useCallback(() => {
+    return cropBoxRef.current?.clientWidth || DEFAULT_CROP_SIZE;
+  }, []);
 
   const clampCrop = useCallback(
     (nextX: number, nextY: number, nextZoom = zoom) => {
@@ -18,9 +23,10 @@ export const useAvatar = (userId: string) => {
         return { x: nextX, y: nextY };
       }
 
-      const cropSize = cropBoxRef.current.clientWidth;
-      const imageWidth = imageSizeRef.current.width * nextZoom;
-      const imageHeight = imageSizeRef.current.height * nextZoom;
+      const cropSize = getCropSize();
+      const baseScale = imageSizeRef.current.baseScale || 1;
+      const imageWidth = imageSizeRef.current.width * baseScale * nextZoom;
+      const imageHeight = imageSizeRef.current.height * baseScale * nextZoom;
 
       if (!imageWidth || !imageHeight) {
         return { x: nextX, y: nextY };
@@ -34,7 +40,7 @@ export const useAvatar = (userId: string) => {
         y: Math.min(limitY, Math.max(-limitY, nextY)),
       };
     },
-    [zoom]
+    [zoom, getCropSize]
   );
 
   const selectFile = useCallback((file: File | null) => {
@@ -48,16 +54,26 @@ export const useAvatar = (userId: string) => {
 
     const img = new Image();
     img.onload = () => {
+      const cropSize = getCropSize();
+      const baseScale = Math.max(
+        cropSize / img.naturalWidth,
+        cropSize / img.naturalHeight
+      );
+
       imageSizeRef.current = {
         width: img.naturalWidth,
         height: img.naturalHeight,
+        baseScale,
       };
     };
     img.src = objectUrl;
-  }, []);
+  }, [getCropSize]);
 
   const onPointerDown = (e: any) => {
     if (!avatarSrc) return;
+
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+
     setIsDragging(true);
     dragStartRef.current = {
       x: e.clientX,
@@ -87,7 +103,7 @@ export const useAvatar = (userId: string) => {
   const getCroppedBase64 = async (): Promise<string | null> => {
     if (!avatarSrc || !cropBoxRef.current) return null;
 
-    const size = cropBoxRef.current.clientWidth;
+    const size = getCropSize();
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
@@ -106,8 +122,9 @@ export const useAvatar = (userId: string) => {
     ctx.closePath();
     ctx.clip();
 
-    const drawWidth = img.width * zoom;
-    const drawHeight = img.height * zoom;
+    const baseScale = imageSizeRef.current.baseScale || 1;
+    const drawWidth = img.width * baseScale * zoom;
+    const drawHeight = img.height * baseScale * zoom;
     const drawX = size / 2 - drawWidth / 2 + cropX;
     const drawY = size / 2 - drawHeight / 2 + cropY;
 

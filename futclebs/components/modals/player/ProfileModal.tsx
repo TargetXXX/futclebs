@@ -128,7 +128,7 @@ export const ProfileModal: React.FC<Props> = ({ onClose }) => {
                       onPointerDown={avatar.onPointerDown}
                       onPointerMove={avatar.onPointerMove}
                       onPointerUp={avatar.onPointerUp}
-                      className="relative w-36 h-36 rounded-full overflow-hidden border-4 border-emerald-500 cursor-move shadow-[0_0_20px_rgba(16,185,129,0.2)]"
+                      className="relative w-44 h-44 rounded-full overflow-hidden border-4 border-emerald-500 cursor-move touch-none select-none shadow-[0_0_20px_rgba(16,185,129,0.2)]"
                     >
                       <img
                         src={avatar.avatarSrc}
@@ -139,14 +139,15 @@ export const ProfileModal: React.FC<Props> = ({ onClose }) => {
                         className="absolute top-1/2 left-1/2 max-w-none origin-center"
                       />
                     </div>
-                    <div className="w-full max-w-[150px] space-y-2">
+                    <div className="w-full max-w-[220px] space-y-2">
                        <input
                         type="range"
-                        min="1" max="4" step="0.01"
+                        min="1" max="3" step="0.01"
                         value={avatar.zoom}
                         onChange={(e) => avatar.setZoom(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
                       />
+                      <p className="text-center text-[11px] text-slate-500">Arraste para reposicionar e ajuste o zoom</p>
                     </div>
                   </div>
                 )}
