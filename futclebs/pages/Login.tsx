@@ -1,23 +1,29 @@
 import { AuthCard } from "@/components/auth/AuthCard";
 import { api } from "@/services/axios";
-import type { FormEvent } from "react";
+import { Alert, Button, Form, Input, Layout, Space, Typography } from "antd";
+import { LockOutlined, PhoneOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const { Content } = Layout;
+const { Text } = Typography;
+
+interface LoginValues {
+  phone: string;
+  password: string;
+}
+
 export default function Login() {
   const navigate = useNavigate();
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (event: FormEvent) => {
-    event.preventDefault();
+  const handleLogin = async (values: LoginValues) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.post("/auth/login", { phone, password });
+      const response = await api.post("/auth/login", values);
       const { token, player } = response.data;
 
       localStorage.setItem("token", token);
@@ -31,51 +37,35 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3c] px-4 py-10 flex items-center justify-center">
-      <AuthCard title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar sua evolução nas organizações.">
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Telefone</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-              placeholder="44999999999"
-              className="w-full rounded-xl border border-slate-600/70 bg-slate-950/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none"
-            />
-          </div>
+    <Layout style={{ minHeight: "100vh", background: "linear-gradient(135deg, #020617 0%, #0f172a 45%, #082f49 100%)" }}>
+      <Content style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <AuthCard title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar sua evolução nas organizações.">
+          <Form<LoginValues> layout="vertical" onFinish={handleLogin} requiredMark={false}>
+            <Form.Item name="phone" label="Telefone" rules={[{ required: true, message: "Informe o telefone" }]}>
+              <Input size="large" placeholder="44999999999" prefix={<PhoneOutlined />} />
+            </Form.Item>
 
-          <div>
-            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Senha</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-slate-600/70 bg-slate-950/60 px-4 py-3 text-white placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none"
-            />
-          </div>
+            <Form.Item name="password" label="Senha" rules={[{ required: true, message: "Informe a senha" }]}>
+              <Input.Password size="large" placeholder="••••••••" prefix={<LockOutlined />} />
+            </Form.Item>
 
-          {error && <div className="rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
+            {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl bg-emerald-500 py-3 font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
+            <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+              Entrar
+            </Button>
+          </Form>
 
-        <div className="mt-6 text-center text-sm text-slate-300">
-          Não tem conta?{" "}
-          <button onClick={() => navigate("/register")} className="font-semibold text-emerald-300 hover:text-emerald-200">
-            Criar conta
-          </button>
-        </div>
-      </AuthCard>
-    </div>
+          <Space direction="vertical" style={{ marginTop: 20, width: "100%", textAlign: "center" }}>
+            <Text type="secondary">
+              Não tem conta?{" "}
+              <Button type="link" onClick={() => navigate("/register")} style={{ paddingInline: 0 }}>
+                Criar conta
+              </Button>
+            </Text>
+          </Space>
+        </AuthCard>
+      </Content>
+    </Layout>
   );
 }
