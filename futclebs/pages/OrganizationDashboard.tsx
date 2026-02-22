@@ -759,7 +759,8 @@ export default function OrganizationDashboard() {
                     <Card hoverable className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70] transition-all duration-300 hover:!-translate-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <Title level={4} className="!text-white !mb-1">{tournament.name}</Title>
-                        <Space>
+                        <Space wrap>
+                          <Button onClick={() => navigate(`/dashboard/org/${orgId}/tournaments/${tournament.id}`)}>Ver página</Button>
                           <Button onClick={() => viewTournamentMatches(tournament.id)}>Ver partidas</Button>
                           <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateMatchForTournament(tournament.id)} disabled={!isAdmin || teamCount < 2}>
                             Criar partida
