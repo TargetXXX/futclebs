@@ -219,6 +219,7 @@ export default function OrganizationDashboard() {
   };
 
   useEffect(() => {
+    if (orgId) localStorage.setItem("orgId", orgId);
     fetchDashboardData();
   }, [orgId]);
 
@@ -568,14 +569,14 @@ export default function OrganizationDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <Spin size="large" />
       </div>
     );
   }
 
   if (!organization) {
-    return <div className="min-h-screen bg-[#020b22] text-white flex items-center justify-center">Sem dados.</div>;
+    return <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">Sem dados.</div>;
   }
 
   const uniquePositions = Array.from(
@@ -589,7 +590,7 @@ export default function OrganizationDashboard() {
   const isUserRegisteredInLineup = lineupPlayers.some((player) => player.id === user?.id);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#030a1e] via-[#06193f] to-[#03142e] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3d] text-white">
       {contextHolder}
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -641,7 +642,7 @@ export default function OrganizationDashboard() {
         {(activeTab === "open" || activeTab === "finished" || activeTab === "pending") && (
           <div className="grid gap-4">
             <div className="flex flex-wrap items-center gap-3">
-              <Text className="!text-[#9ab7ea]">Filtro de torneio:</Text>
+              <Text className="!text-slate-300">Filtro de torneio:</Text>
               <Select
                 value={matchTournamentFilter}
                 onChange={setMatchTournamentFilter}
@@ -706,12 +707,12 @@ export default function OrganizationDashboard() {
                 <Col xs={24} md={12} lg={8} key={player.id}>
                   <Card
                     hoverable
-                    className="!bg-[#071c45] !border-[#1f3d74] !rounded-2xl"
+                    className="!bg-slate-900/80 !border-slate-700 !rounded-2xl"
                     onClick={() => setSelectedPlayer(player)}
                   >
                     <Text className="!text-[#7ea3e5]">#{index + 1}</Text>
                     <Title level={5} className="!text-white !mb-1">{player.name}</Title>
-                    <Text className="!text-[#7992bd]">{player.primary_position || "Linha"}</Text>
+                    <Text className="!text-slate-400">{player.primary_position || "Linha"}</Text>
                     <Title level={3} className="!text-emerald-400 !m-0">{player.pivot?.overall ?? 0}</Title>
                     <Progress
                       percent={Math.min(player.pivot?.overall ?? 0, 100)}
@@ -727,9 +728,9 @@ export default function OrganizationDashboard() {
 
         {activeTab === "tournaments" && (
           <div className="space-y-5">
-            <Card className="!bg-[#071737] !border-[#214378] !rounded-2xl">
+            <Card className="!bg-slate-900/80 !border-slate-700 !rounded-2xl !shadow-xl !shadow-black/20">
               <Title level={4} className="!text-white">Central de Torneios</Title>
-              <Text className="!text-[#9ab7ea]">
+              <Text className="!text-slate-300">
                 Crie partidas de torneio com fluxo guiado: escolha o torneio e selecione dois times já cadastrados.
               </Text>
               <div className="mt-3">
@@ -756,7 +757,7 @@ export default function OrganizationDashboard() {
 
                 return (
                   <Col xs={24} md={12} key={tournament.id}>
-                    <Card hoverable className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70] transition-all duration-300 hover:!-translate-y-1">
+                    <Card hoverable className="!rounded-2xl !bg-slate-900/80 !border-slate-700 transition-all duration-300 hover:!-translate-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <Title level={4} className="!text-white !mb-1">{tournament.name}</Title>
                         <Space wrap>
@@ -856,7 +857,7 @@ export default function OrganizationDashboard() {
           <Spin />
         ) : (
           <>
-            <Card className="!mb-4 !rounded-2xl !bg-[#071737] !border-[#22406f]" size="small">
+            <Card className="!mb-4 !rounded-2xl !bg-slate-900/80 !border-slate-700" size="small">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Text className="!text-[#8faedb]">Time A</Text>
@@ -893,7 +894,7 @@ export default function OrganizationDashboard() {
 
             <Row gutter={12}>
               <Col span={12}>
-                <Card title="Time A" size="small" className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]">
+                <Card title="Time A" size="small" className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
                   <List
                     dataSource={lineupPlayers.filter((player) => teamAIds.includes(player.id))}
                     locale={{ emptyText: "Sem jogadores" }}
@@ -909,7 +910,7 @@ export default function OrganizationDashboard() {
                 </Card>
               </Col>
               <Col span={12}>
-                <Card title="Time B" size="small" className="!rounded-2xl !bg-[#061b3f] !border-[#1c3b70]">
+                <Card title="Time B" size="small" className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
                   <List
                     dataSource={lineupPlayers.filter((player) => teamBIds.includes(player.id))}
                     locale={{ emptyText: "Sem jogadores" }}

@@ -247,11 +247,11 @@ export default function DashboardHome() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3d] text-white">
       <UniversalNavbar />
 
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        <div className="bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8">
+        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8 shadow-xl shadow-black/20">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Home Dashboard Futclebs</h1>
@@ -272,36 +272,36 @@ export default function DashboardHome() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
             <div className="text-slate-400 text-sm">Organizações</div>
             <div className="text-2xl font-bold mt-1">{dashboardStats.total}</div>
           </div>
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
             <div className="text-slate-400 text-sm">Admin em</div>
             <div className="text-2xl font-bold mt-1">{dashboardStats.adminCount}</div>
           </div>
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
             <div className="text-slate-400 text-sm">Overall médio</div>
             <div className="text-2xl font-bold mt-1 text-emerald-400">{dashboardStats.avgOverall}</div>
           </div>
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4">
+          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
             <div className="text-slate-400 text-sm">Favoritas</div>
             <div className="text-2xl font-bold mt-1 text-yellow-400">{dashboardStats.favoritesCount}</div>
           </div>
         </div>
 
         {strongestOrganization && (
-          <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-400/20 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div onClick={() => navigate(`/dashboard/org/${strongestOrganization.id}`)} className="cursor-pointer bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-400/20 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-emerald-300/40 transition">
             <div>
               <div className="text-emerald-300 text-sm flex items-center gap-2"><TrophyOutlined /> Destaque do seu elenco</div>
               <div className="text-lg font-semibold">{strongestOrganization.name}</div>
             </div>
-            <Tag color="green">Overall {strongestOrganization.stats?.overall ?? 0}</Tag>
+            <div className="flex items-center gap-3"><Tag color="green">Overall {strongestOrganization.stats?.overall ?? 0}</Tag><span className="text-emerald-300 text-sm">Abrir →</span></div>
           </div>
         )}
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2 text-slate-300"><FilterOutlined /> Filtros inteligentes</div>
+        <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 space-y-4 shadow-lg shadow-black/20">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-slate-300"><span className="flex items-center gap-2"><FilterOutlined /> Filtros inteligentes</span><span className="text-xs text-slate-400">{filteredOrganizations.length} organização(ões) exibida(s)</span></div>
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-3">
             <Input
               value={searchTerm}
@@ -355,10 +355,10 @@ export default function DashboardHome() {
 
         {loading ? (
           <div className="text-center py-20 text-slate-400">
-            <Spin />
+            <Spin size="large" />
           </div>
         ) : filteredOrganizations.length === 0 ? (
-          <div className="text-center py-20 bg-slate-900/60 border border-slate-800 rounded-3xl">
+          <div className="text-center py-20 bg-slate-900/70 border border-slate-700/80 rounded-3xl shadow-lg shadow-black/20">
             <h2 className="text-xl font-semibold mb-3">Nenhum resultado encontrado</h2>
             <p className="text-slate-400 mb-6">Ajuste os filtros ou entre em uma nova organização.</p>
             <div className="flex items-center justify-center gap-3">
