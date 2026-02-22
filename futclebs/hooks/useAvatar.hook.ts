@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 export const useAvatar = (userId: string) => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -10,14 +10,50 @@ export const useAvatar = (userId: string) => {
 
   const cropBoxRef = useRef<HTMLDivElement | null>(null);
   const dragStartRef = useRef<any>(null);
+  const imageSizeRef = useRef({ width: 0, height: 0 });
+
+  const clampCrop = useCallback(
+    (nextX: number, nextY: number, nextZoom = zoom) => {
+      if (!cropBoxRef.current) {
+        return { x: nextX, y: nextY };
+      }
+
+      const cropSize = cropBoxRef.current.clientWidth;
+      const imageWidth = imageSizeRef.current.width * nextZoom;
+      const imageHeight = imageSizeRef.current.height * nextZoom;
+
+      if (!imageWidth || !imageHeight) {
+        return { x: nextX, y: nextY };
+      }
+
+      const limitX = Math.max(0, (imageWidth - cropSize) / 2);
+      const limitY = Math.max(0, (imageHeight - cropSize) / 2);
+
+      return {
+        x: Math.min(limitX, Math.max(-limitX, nextX)),
+        y: Math.min(limitY, Math.max(-limitY, nextY)),
+      };
+    },
+    [zoom]
+  );
 
   const selectFile = useCallback((file: File | null) => {
     if (!file) return;
     setAvatarFile(file);
-    setAvatarSrc(URL.createObjectURL(file));
+    const objectUrl = URL.createObjectURL(file);
+    setAvatarSrc(objectUrl);
     setCropX(0);
     setCropY(0);
     setZoom(1);
+
+    const img = new Image();
+    img.onload = () => {
+      imageSizeRef.current = {
+        width: img.naturalWidth,
+        height: img.naturalHeight,
+      };
+    };
+    img.src = objectUrl;
   }, []);
 
   const onPointerDown = (e: any) => {
@@ -37,8 +73,10 @@ export const useAvatar = (userId: string) => {
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
 
-    setCropX(dragStartRef.current.cx + dx);
-    setCropY(dragStartRef.current.cy + dy);
+    const clamped = clampCrop(dragStartRef.current.cx + dx, dragStartRef.current.cy + dy);
+
+    setCropX(clamped.x);
+    setCropY(clamped.y);
   };
 
   const onPointerUp = () => {
@@ -68,18 +106,41 @@ export const useAvatar = (userId: string) => {
     ctx.closePath();
     ctx.clip();
 
-    ctx.drawImage(
-      img,
-      cropX,
-      cropY,
-      img.width * zoom,
-      img.height * zoom
-    );
+    const drawWidth = img.width * zoom;
+    const drawHeight = img.height * zoom;
+    const drawX = size / 2 - drawWidth / 2 + cropX;
+    const drawY = size / 2 - drawHeight / 2 + cropY;
+
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
     ctx.restore();
 
     return canvas.toDataURL("image/jpeg", 0.9);
   };
+
+  useEffect(() => {
+    if (!avatarSrc) return;
+
+    const clamped = clampCrop(cropX, cropY);
+
+    if (clamped.x !== cropX) {
+      setCropX(clamped.x);
+    }
+
+    if (clamped.y !== cropY) {
+      setCropY(clamped.y);
+    }
+  }, [avatarSrc, zoom, cropX, cropY, clampCrop]);
+
+  const setZoomWithClamp = useCallback(
+    (nextZoom: number) => {
+      setZoom(nextZoom);
+      const clamped = clampCrop(cropX, cropY, nextZoom);
+      setCropX(clamped.x);
+      setCropY(clamped.y);
+    },
+    [clampCrop, cropX, cropY]
+  );
 
   return {
     avatarFile,
@@ -89,7 +150,7 @@ export const useAvatar = (userId: string) => {
     zoom,
     isDragging,
     cropBoxRef,
-    setZoom,
+    setZoom: setZoomWithClamp,
     setCropX,
     setCropY,
     selectFile,

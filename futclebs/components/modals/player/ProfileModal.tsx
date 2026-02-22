@@ -53,30 +53,34 @@ export const ProfileModal: React.FC<Props> = ({ onClose }) => {
   ]);
   const handleSave = async () => {
     if (!hasChanges) return;
+
+    if (newPassword && !currentPassword) {
+      alert("Digite sua senha atual");
+      return;
+    }
+
     try {
       setLoading(true);
-      let avatarBase64 = player?.avatar;
+
+      const payload: Record<string, string> = {};
+
+      if (name !== player?.name) payload.name = name;
+      if (email !== player?.email) payload.email = email;
+      if (phone !== player?.phone) payload.phone = phone;
+      if (primaryPosition !== player?.primary_position) payload.primary_position = primaryPosition;
+      if (secondaryPosition !== player?.secondary_position) payload.secondary_position = secondaryPosition;
+
       if (avatar.avatarSrc) {
-        avatarBase64 = await avatar.getCroppedBase64();
+        const avatarBase64 = await avatar.getCroppedBase64();
+        if (avatarBase64) payload.avatar = avatarBase64;
       }
-      const payload: any = {
-        name,
-        email,
-        phone,
-        primary_position: primaryPosition,
-        secondary_position: secondaryPosition,
-        avatar: avatarBase64,
-      };
 
       if (newPassword) {
-        if (!currentPassword) {
-          alert("Digite sua senha atual");
-          return;
-        }
-
         payload.password = newPassword;
         payload.current_password = currentPassword;
       }
+
+      if (!Object.keys(payload).length) return;
 
       const { data } = await api.put("/players/" + player?.id, payload);
 
@@ -130,15 +134,15 @@ export const ProfileModal: React.FC<Props> = ({ onClose }) => {
                         src={avatar.avatarSrc}
                         alt="Preview"
                         style={{
-                          transform: `translate(${avatar.cropX}px, ${avatar.cropY}px) scale(${avatar.zoom})`,
+                          transform: `translate(calc(-50% + ${avatar.cropX}px), calc(-50% + ${avatar.cropY}px)) scale(${avatar.zoom})`,
                         }}
-                        className="absolute top-0 left-0 max-w-none origin-top-left"
+                        className="absolute top-1/2 left-1/2 max-w-none origin-center"
                       />
                     </div>
                     <div className="w-full max-w-[150px] space-y-2">
                        <input
                         type="range"
-                        min="1" max="3" step="0.1"
+                        min="1" max="4" step="0.01"
                         value={avatar.zoom}
                         onChange={(e) => avatar.setZoom(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
