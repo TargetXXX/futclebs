@@ -1,7 +1,7 @@
 import { api } from "@/services/axios";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button, Input, Progress, Select, Spin, Switch, Tag, Tooltip } from "antd";
+import { Button, Card, Col, Empty, Input, Progress, Row, Select, Spin, Statistic, Switch, Tag, Tooltip, Typography } from "antd";
 import {
   AppstoreOutlined,
   FilterOutlined,
@@ -28,6 +28,7 @@ type ViewMode = "grid" | "list";
 
 const FAVORITES_STORAGE_KEY = "futclebs.favorite.orgs";
 const DASHBOARD_PREFS_STORAGE_KEY = "futclebs.dashboard.prefs";
+const { Title, Text } = Typography;
 
 export default function DashboardHome() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -164,7 +165,7 @@ export default function DashboardHome() {
         <div
           key={org.id}
           onClick={() => navigate(`/dashboard/org/${org.id}`)}
-          className="cursor-pointer bg-slate-900/70 border border-slate-800 rounded-2xl p-5 hover:border-emerald-500/40 transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+          className="dashboard-glow cursor-pointer bg-gradient-to-br from-slate-900/85 to-slate-950/90 border border-slate-700 rounded-2xl p-5 hover:border-emerald-500/40 transition-all flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -200,7 +201,7 @@ export default function DashboardHome() {
       <div
         key={org.id}
         onClick={() => navigate(`/dashboard/org/${org.id}`)}
-        className="cursor-pointer bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group"
+        className="dashboard-glow cursor-pointer bg-gradient-to-b from-slate-900/70 to-slate-950/90 backdrop-blur-xl border border-slate-700 rounded-3xl p-6 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300 group"
       >
         <div className="flex justify-between items-start mb-4 gap-2">
           <div className="space-y-2">
@@ -247,17 +248,15 @@ export default function DashboardHome() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-[#071a3d] text-white">
+    <div className="min-h-screen bg-gradient-to-br from-[#020617] via-[#020b1d] to-[#050d23] text-white">
       <UniversalNavbar />
 
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8 shadow-xl shadow-black/20">
+        <div className="dashboard-glow relative overflow-hidden bg-gradient-to-r from-emerald-500/15 via-cyan-500/10 to-sky-500/15 border border-emerald-400/20 rounded-3xl p-6 lg:p-8 shadow-xl shadow-black/30">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Home Dashboard Futclebs</h1>
-              <p className="text-slate-300 mt-2 max-w-2xl">
-                Gerencie suas organizações com filtros inteligentes, favoritos e visão competitiva em um layout mais moderno.
-              </p>
+              <Title level={2} className="!text-white !m-0">Home Dashboard Futclebs</Title>
+              <Text className="!text-slate-300 mt-2 block max-w-2xl">Gerencie suas organizações com filtros inteligentes, favoritos e visão competitiva em um layout mais moderno.</Text>
             </div>
 
             <div className="flex gap-3 flex-wrap">
@@ -271,24 +270,12 @@ export default function DashboardHome() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
-            <div className="text-slate-400 text-sm">Organizações</div>
-            <div className="text-2xl font-bold mt-1">{dashboardStats.total}</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
-            <div className="text-slate-400 text-sm">Admin em</div>
-            <div className="text-2xl font-bold mt-1">{dashboardStats.adminCount}</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
-            <div className="text-slate-400 text-sm">Overall médio</div>
-            <div className="text-2xl font-bold mt-1 text-emerald-400">{dashboardStats.avgOverall}</div>
-          </div>
-          <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 shadow-lg shadow-black/20">
-            <div className="text-slate-400 text-sm">Favoritas</div>
-            <div className="text-2xl font-bold mt-1 text-yellow-400">{dashboardStats.favoritesCount}</div>
-          </div>
-        </div>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Organizações" value={dashboardStats.total} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Admin em" value={dashboardStats.adminCount} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Overall médio" value={dashboardStats.avgOverall} valueStyle={{ color: '#34d399' }} /></Card></Col>
+          <Col xs={24} md={12} lg={6}><Card className="dashboard-glow !rounded-2xl"><Statistic title="Favoritas" value={dashboardStats.favoritesCount} valueStyle={{ color: '#facc15' }} /></Card></Col>
+        </Row>
 
         {strongestOrganization && (
           <div onClick={() => navigate(`/dashboard/org/${strongestOrganization.id}`)} className="cursor-pointer bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-400/20 rounded-2xl p-4 flex items-center justify-between gap-4 hover:border-emerald-300/40 transition">
@@ -300,7 +287,7 @@ export default function DashboardHome() {
           </div>
         )}
 
-        <div className="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 space-y-4 shadow-lg shadow-black/20">
+        <div className="dashboard-glow bg-gradient-to-b from-slate-900/85 to-slate-950/90 border border-slate-700/80 rounded-2xl p-4 space-y-4 shadow-lg shadow-black/30">
           <div className="flex flex-wrap items-center justify-between gap-2 text-slate-300"><span className="flex items-center gap-2"><FilterOutlined /> Filtros inteligentes</span><span className="text-xs text-slate-400">{filteredOrganizations.length} organização(ões) exibida(s)</span></div>
           <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-3">
             <Input
@@ -358,16 +345,16 @@ export default function DashboardHome() {
             <Spin size="large" />
           </div>
         ) : filteredOrganizations.length === 0 ? (
-          <div className="text-center py-20 bg-slate-900/70 border border-slate-700/80 rounded-3xl shadow-lg shadow-black/20">
-            <h2 className="text-xl font-semibold mb-3">Nenhum resultado encontrado</h2>
-            <p className="text-slate-400 mb-6">Ajuste os filtros ou entre em uma nova organização.</p>
+          <Card className="!text-center !py-10 !rounded-3xl">
+            <Empty description="Nenhum resultado encontrado" />
+            <Text className="!text-slate-400 !mb-6 block">Ajuste os filtros ou entre em uma nova organização.</Text>
             <div className="flex items-center justify-center gap-3">
               <Button onClick={resetFilters} className="!h-11 !rounded-2xl !border-slate-500/40 !bg-slate-900/70 !px-6 !text-slate-100">Limpar filtros</Button>
               <Button onClick={() => setJoinOpen(true)} className="!h-11 !rounded-2xl !border-0 !bg-gradient-to-r !from-emerald-400 !to-cyan-400 !px-6 !font-semibold !shadow-lg !shadow-emerald-500/20 hover:!from-emerald-300 hover:!to-cyan-300" type="primary">
                 Buscar Organizações
               </Button>
             </div>
-          </div>
+          </Card>
         ) : (
           <div className={viewMode === "grid" ? "grid md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
             {filteredOrganizations.map(renderOrganizationCard)}
