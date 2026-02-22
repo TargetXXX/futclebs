@@ -268,6 +268,16 @@ export default function OrganizationDashboard() {
       .sort((a, b) => (b.pivot?.overall ?? 0) - (a.pivot?.overall ?? 0));
   }, [organization?.players, rankingSearch, rankingPositionFilter]);
 
+  const rankingFieldPlayers = useMemo(
+    () => rankingPlayers.filter((player) => (player.primary_position || "Linha").toLowerCase() !== "goleiro").slice(0, 3),
+    [rankingPlayers],
+  );
+
+  const rankingGoalkeepers = useMemo(
+    () => rankingPlayers.filter((player) => (player.primary_position || "Linha").toLowerCase() === "goleiro").slice(0, 3),
+    [rankingPlayers],
+  );
+
   const tournamentById = useMemo(
     () => new Map(tournaments.map((tournament) => [tournament.id, tournament])),
     [tournaments],
@@ -707,7 +717,7 @@ export default function OrganizationDashboard() {
         )}
 
         {activeTab === "ranking" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             <Space wrap>
               <Input className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100" placeholder="Buscar jogador" value={rankingSearch} onChange={(e) => setRankingSearch(e.target.value)} />
               <Select
@@ -720,6 +730,43 @@ export default function OrganizationDashboard() {
                 style={{ minWidth: 220 }} className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
               />
             </Space>
+
+            {[
+              { title: "Elite de Linha", subtitle: "Os 3 mais letais", players: rankingFieldPlayers, color: "#facc15" },
+              { title: "Muralhas", subtitle: "Os guardiões imbatíveis", players: rankingGoalkeepers, color: "#fb923c" },
+            ].map((group) => (
+              <Card
+                key={group.title}
+                className="!rounded-3xl !border-[#22345e] !bg-[#020a22]/90 !shadow-xl !shadow-black/40"
+                styles={{ body: { padding: 20 } }}
+              >
+                <div className="text-center mb-5">
+                  <Title level={2} className="!text-white !m-0 !uppercase">{group.title}</Title>
+                  <Text className="!text-xs !uppercase !tracking-[0.2em]" style={{ color: group.color }}>{group.subtitle}</Text>
+                </div>
+
+                <Row gutter={[16, 16]} justify="center">
+                  {group.players.length > 0 ? group.players.map((player, index) => (
+                    <Col xs={24} md={8} key={`${group.title}-${player.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlayer(player)}
+                        className="w-full rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3 text-center transition hover:-translate-y-1 hover:border-cyan-300/50"
+                      >
+                        <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center rounded-full border-4" style={{ borderColor: index === 0 ? "#facc15" : index === 1 ? "#cbd5e1" : "#d97706" }}>
+                          <Avatar src={player.avatar || undefined} size={68} className="!bg-slate-700 !text-white">{player.name?.[0]}</Avatar>
+                        </div>
+                        <div className="mb-2 text-sm font-bold text-slate-100">{player.name}</div>
+                        <div className="mx-auto max-w-[180px] rounded-t-[34px] border border-slate-700/60 bg-gradient-to-b from-slate-200 to-slate-400 py-5 text-center text-slate-900" style={{ background: index === 0 ? "linear-gradient(180deg, #fde047 0%, #eab308 100%)" : index === 1 ? "linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%)" : "linear-gradient(180deg, #fb923c 0%, #c2410c 100%)" }}>
+                          <div className="text-5xl font-black leading-none">{player.pivot?.overall ?? 0}</div>
+                          <div className="text-xs font-bold uppercase tracking-[0.18em]">OVR</div>
+                        </div>
+                      </button>
+                    </Col>
+                  )) : <Text className="!text-slate-400">Sem jogadores nessa categoria.</Text>}
+                </Row>
+              </Card>
+            ))}
 
             <Row gutter={[16, 16]}>
               {rankingPlayers.map((player, index) => (
@@ -839,43 +886,32 @@ export default function OrganizationDashboard() {
         )}
       </div>
 
-      <Modal open={Boolean(selectedPlayer)} onCancel={() => setSelectedPlayer(null)} footer={null} title={selectedPlayer?.name}>
+      <Modal open={Boolean(selectedPlayer)} onCancel={() => setSelectedPlayer(null)} footer={null} title={null} centered>
         {selectedPlayer && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "OVR", value: selectedPlayer.pivot?.overall ?? 0, color: "text-emerald-300" },
-                { label: "Posição", value: selectedPlayer.primary_position || "Linha", color: "text-cyan-300" },
-                { label: "Gols", value: selectedPlayer.goals_total ?? 0, color: "text-amber-300" },
-                { label: "Assistências", value: selectedPlayer.assists_total ?? 0, color: "text-indigo-300" },
-              ].map((item) => (
-                <div key={item.label} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3">
-                  <Text className="!text-slate-400 !text-xs !uppercase">{item.label}</Text>
-                  <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
-                </div>
-              ))}
+          <div className="rounded-[30px] border border-[#bea85d] bg-gradient-to-b from-[#f8ebc0] via-[#e6cd8c] to-[#caa65e] p-4 text-[#2d210f]" style={{ clipPath: "polygon(0 0, 100% 0, 100% 94%, 50% 100%, 0 94%)" }}>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-6xl font-black leading-none">{selectedPlayer.pivot?.overall ?? 0}</div>
+                <div className="text-xs font-bold uppercase tracking-[0.16em]">{selectedPlayer.primary_position || "Linha"}</div>
+              </div>
+              <Avatar src={selectedPlayer.avatar || undefined} size={84} className="!border-4 !border-amber-50 !bg-slate-700 !text-white">{selectedPlayer.name?.[0]}</Avatar>
             </div>
-            <List
-              size="small"
-              dataSource={[
-                { label: "Passe", value: selectedPlayer.pivot?.passe ?? 0 },
-                { label: "Drible", value: selectedPlayer.pivot?.drible ?? 0 },
-                { label: "Defesa", value: selectedPlayer.pivot?.defesa ?? 0 },
-                { label: "Finalização", value: selectedPlayer.pivot?.finalizacao ?? 0 },
-                { label: "Físico", value: selectedPlayer.pivot?.fisico ?? 0 },
-              ]}
-              renderItem={(item) => (
-                <List.Item>
-                  <div className="w-full">
-                    <div className="flex items-center justify-between text-xs text-slate-300 mb-1">
-                      <span>{item.label}</span>
-                      <span className="font-semibold text-emerald-300">{item.value}</span>
-                    </div>
-                    <Progress percent={Math.min(Number(item.value) * 20, 100)} showInfo={false} strokeColor="#34d399" trailColor="#1e293b" />
-                  </div>
-                </List.Item>
-              )}
-            />
+
+            <div className="mt-3 border-y border-amber-900/25 py-1 text-center text-xl font-black uppercase tracking-wide">{selectedPlayer.name}</div>
+
+            <div className="mt-3 grid grid-cols-2 gap-x-5 gap-y-1.5 text-sm font-extrabold">
+              <div className="flex justify-between"><span>PAC</span><span>{selectedPlayer.pivot?.velocidade ?? 0}</span></div>
+              <div className="flex justify-between"><span>SHO</span><span>{selectedPlayer.pivot?.finalizacao ?? 0}</span></div>
+              <div className="flex justify-between"><span>PAS</span><span>{selectedPlayer.pivot?.passe ?? 0}</span></div>
+              <div className="flex justify-between"><span>DRI</span><span>{selectedPlayer.pivot?.drible ?? 0}</span></div>
+              <div className="flex justify-between"><span>DEF</span><span>{selectedPlayer.pivot?.defesa ?? 0}</span></div>
+              <div className="flex justify-between"><span>PHY</span><span>{selectedPlayer.pivot?.fisico ?? 0}</span></div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs font-bold uppercase">
+              <div className="rounded-lg border border-amber-900/20 bg-amber-50/40 p-2">⚽ Gols: {selectedPlayer.goals_total ?? 0}</div>
+              <div className="rounded-lg border border-amber-900/20 bg-amber-50/40 p-2">🎯 Assist: {selectedPlayer.assists_total ?? 0}</div>
+            </div>
           </div>
         )}
       </Modal>
