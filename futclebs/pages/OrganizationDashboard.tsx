@@ -884,6 +884,10 @@ export default function OrganizationDashboard() {
                 const tournamentMatches = matches.filter((match) => match.tournament_id === tournament.id);
                 const finishedCount = tournamentMatches.filter((match) => match.status === "finished").length;
                 const teamCount = tournament.teams?.length ?? 0;
+                const topTournamentPlayers = (tournament.teams ?? [])
+                  .flatMap((team) => (team.players ?? []).map((player) => ({ ...player, teamName: team.name })))
+                  .sort((a, b) => (b.pivot?.overall ?? 0) - (a.pivot?.overall ?? 0))
+                  .slice(0, 3);
 
                 return (
                   <Col xs={24} md={12} key={tournament.id}>
@@ -920,6 +924,21 @@ export default function OrganizationDashboard() {
                       <div className="mt-2 flex flex-wrap gap-2">
                         {(tournament.teams ?? []).map((team) => <Tag key={team.id}>{team.name}</Tag>)}
                         {teamCount === 0 && <Tag color="warning">Sem times</Tag>}
+                      </div>
+
+                      <Divider className="!border-[#1f3a68] !my-3" />
+                      <Text className="!text-[#82a1d2]">Top jogadores do torneio</Text>
+                      <div className="mt-2 space-y-2">
+                        {topTournamentPlayers.map((player, index) => (
+                          <div key={`${tournament.id}-${player.id}`} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
+                            <div className="min-w-0">
+                              <Text className="!text-slate-100 !font-semibold">#{index + 1} {player.name}</Text>
+                              <div><Text className="!text-xs !text-slate-400">{player.teamName}</Text></div>
+                            </div>
+                            <Tag color={index === 0 ? "gold" : "green"}>OVR {player.pivot?.overall ?? 0}</Tag>
+                          </div>
+                        ))}
+                        {topTournamentPlayers.length === 0 && <Tag color="warning">Sem jogadores vinculados aos times</Tag>}
                       </div>
                     </Card>
                   </Col>

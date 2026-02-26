@@ -65,7 +65,7 @@ interface TournamentData {
 interface OrganizationPlayer {
   id: number;
   name: string;
-  pivot?: { is_admin?: boolean };
+  pivot?: { is_admin?: boolean; overall?: number };
 }
 
 interface OrganizationData {
@@ -75,6 +75,18 @@ interface OrganizationData {
 
 interface AuthUser {
   id: number;
+}
+
+interface TournamentPlayerRankingRow {
+  playerId: number;
+  playerName: string;
+  teamName: string;
+  matches: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  points: number;
+  overall: number;
 }
 
 interface StandingRow {
@@ -243,6 +255,65 @@ export default function TournamentDetails() {
       return b.gp - a.gp;
     });
   }, [sortedMatches, tournament?.teams]);
+
+
+
+  const tournamentPlayerRanking = useMemo(() => {
+    const rankingByPlayer = new Map<number, TournamentPlayerRankingRow>();
+
+    sortedMatches
+      .filter((match) => match.status === "finished" && match.team_a_id && match.team_b_id)
+      .forEach((match) => {
+        const teamA = teamById.get(match.team_a_id as number);
+        const teamB = teamById.get(match.team_b_id as number);
+        if (!teamA || !teamB) return;
+
+        const goalsA = match.result?.goals_team_a ?? 0;
+        const goalsB = match.result?.goals_team_b ?? 0;
+
+        const registerTeamPlayers = (team: TeamData, opponentGoals: number, ownGoals: number) => {
+          (team.players ?? []).forEach((player) => {
+            const current = rankingByPlayer.get(player.id) ?? {
+              playerId: player.id,
+              playerName: player.name,
+              teamName: team.name,
+              matches: 0,
+              wins: 0,
+              draws: 0,
+              losses: 0,
+              points: 0,
+              overall: Number(player.pivot?.overall ?? 0),
+            };
+
+            current.matches += 1;
+            current.teamName = team.name;
+            current.overall = Number(player.pivot?.overall ?? current.overall ?? 0);
+
+            if (ownGoals > opponentGoals) {
+              current.wins += 1;
+              current.points += 3;
+            } else if (ownGoals === opponentGoals) {
+              current.draws += 1;
+              current.points += 1;
+            } else {
+              current.losses += 1;
+            }
+
+            rankingByPlayer.set(player.id, current);
+          });
+        };
+
+        registerTeamPlayers(teamA, goalsB, goalsA);
+        registerTeamPlayers(teamB, goalsA, goalsB);
+      });
+
+    return Array.from(rankingByPlayer.values()).sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      if (b.overall !== a.overall) return b.overall - a.overall;
+      return a.playerName.localeCompare(b.playerName);
+    });
+  }, [sortedMatches, teamById]);
 
   const knockoutRounds = useMemo(() => {
     const finished = sortedMatches.filter((match) => match.status === "finished");
@@ -421,6 +492,27 @@ export default function TournamentDetails() {
                 </List.Item>
               );
             }}
+          />
+        </Card>
+
+        <Card title={<span className="text-white">Ranking de jogadores no torneio</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
+          <Text className="!text-slate-300">Ranking por desempenho coletivo no torneio (pontos por resultado das partidas em que o jogador esteve no elenco do time).</Text>
+          <Table
+            dataSource={tournamentPlayerRanking.slice(0, 20).map((row, index) => ({ ...row, key: row.playerId, position: index + 1 }))}
+            pagination={false}
+            locale={{ emptyText: "Ainda não há partidas finalizadas para gerar ranking" }}
+            className="mt-3 [&_.ant-table]:!bg-transparent [&_.ant-table-thead>tr>th]:!bg-slate-900 [&_.ant-table-thead>tr>th]:!text-slate-200 [&_.ant-table-tbody>tr>td]:!border-slate-700 [&_.ant-table-tbody>tr>td]:!bg-slate-950/40 [&_.ant-table-tbody>tr>td]:!text-slate-100"
+            columns={[
+              { title: '#', dataIndex: 'position', width: 60 },
+              { title: 'Jogador', dataIndex: 'playerName' },
+              { title: 'Time', dataIndex: 'teamName' },
+              { title: 'PTS', dataIndex: 'points', width: 70 },
+              { title: 'PJ', dataIndex: 'matches', width: 70 },
+              { title: 'V', dataIndex: 'wins', width: 60 },
+              { title: 'E', dataIndex: 'draws', width: 60 },
+              { title: 'D', dataIndex: 'losses', width: 60 },
+              { title: 'OVR', dataIndex: 'overall', width: 80 },
+            ]}
           />
         </Card>
 
