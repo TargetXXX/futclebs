@@ -102,7 +102,6 @@ class Player extends Authenticatable
     public function matches()
     {
         return $this->belongsToMany(MatchModel::class, 'match_players', 'player_id', 'match_id')
-            ->withPivot(['is_goalkeeper', 'team', 'goals', 'assists', 'minutes_played', 'yellow_cards', 'red_cards'])
             ->withTimestamps();
     }
 

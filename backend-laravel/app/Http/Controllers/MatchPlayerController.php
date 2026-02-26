@@ -17,7 +17,7 @@ class MatchPlayerController extends Controller
     public function index(MatchModel $match)
     {
         return $match->players()
-            ->withPivot(['is_goalkeeper', 'team', 'goals', 'assists', 'minutes_played', 'yellow_cards', 'red_cards'])
+            ->withPivot($this->service->supportedPivotColumns())
             ->get();
     }
 
@@ -25,7 +25,7 @@ class MatchPlayerController extends Controller
     {
         return $match->players()
             ->where('player_id', $player->id)
-            ->withPivot(['is_goalkeeper', 'team', 'goals', 'assists', 'minutes_played', 'yellow_cards', 'red_cards'])
+            ->withPivot($this->service->supportedPivotColumns())
             ->first();
     }
 
