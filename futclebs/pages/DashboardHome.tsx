@@ -185,6 +185,14 @@ export default function DashboardHome() {
     return { total, adminCount, avgOverall, favoritesCount };
   }, [organizations, favorites]);
 
+
+
+  const topOrganizations = useMemo(() => {
+    return [...organizations]
+      .sort((a, b) => (b.stats?.overall ?? -999) - (a.stats?.overall ?? -999))
+      .slice(0, 5);
+  }, [organizations]);
+
   const strongestOrganization = useMemo(() => {
     if (!organizations.length) return null;
 
@@ -309,6 +317,39 @@ export default function DashboardHome() {
             </Flex>
           </Card>
         )}
+
+        <Card style={{ marginBottom: 18, borderRadius: 16, border: "1px solid rgba(34,197,94,0.35)", background: "linear-gradient(135deg, rgba(2,44,34,0.55), rgba(2,6,23,0.78))" }}>
+          <Flex justify="space-between" align="center" wrap="wrap" gap={8} style={{ marginBottom: 12 }}>
+            <Text style={{ color: "#d1fae5", fontWeight: 700 }}><TrophyOutlined /> Ranking das organizações</Text>
+            <Text style={{ color: "#a7f3d0" }}>Top {topOrganizations.length}</Text>
+          </Flex>
+          {topOrganizations.length === 0 ? (
+            <Empty description="Sem organizações para ranquear" />
+          ) : (
+            <Space direction="vertical" style={{ width: "100%" }} size={8}>
+              {topOrganizations.map((org, index) => (
+                <Card
+                  key={org.id}
+                  size="small"
+                  hoverable
+                  onClick={() => navigate(`/dashboard/org/${org.id}`)}
+                  style={{ borderRadius: 12, border: "1px solid rgba(16,185,129,0.25)", background: "rgba(2,6,23,0.6)" }}
+                >
+                  <Flex justify="space-between" align="center" wrap="wrap" gap={6}>
+                    <Space>
+                      <Tag color={index === 0 ? "gold" : index === 1 ? "geekblue" : "default"}>#{index + 1}</Tag>
+                      <Text style={{ color: "#ecfeff", fontWeight: 600 }}>{org.name}</Text>
+                    </Space>
+                    <Space>
+                      {org.is_admin && <Tag color="gold">ADMIN</Tag>}
+                      <Tag color="green">OVR {org.stats?.overall ?? 0}</Tag>
+                    </Space>
+                  </Flex>
+                </Card>
+              ))}
+            </Space>
+          )}
+        </Card>
 
         <Card style={{ marginBottom: 18, borderRadius: 16, border: "1px solid rgba(51,65,85,0.45)" }}>
           <Space direction="vertical" size={14} style={{ width: "100%" }}>
