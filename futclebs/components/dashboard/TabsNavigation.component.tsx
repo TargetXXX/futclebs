@@ -13,32 +13,34 @@ export const TabsNavigation: React.FC<TabsNavigationProps> = ({
   getCategoryCount
 }) => {
   return (
-    <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 gap-1 overflow-x-auto no-scrollbar">
-      <TabButton
-        active={activeCategory === 'open'}
-        onClick={() => onCategoryChange('open')}
-        label="Abertas"
-        count={getCategoryCount('open')}
-      />
-      <TabButton
-        active={activeCategory === 'pending'}
-        onClick={() => onCategoryChange('pending')}
-        label="Votar"
-        count={getCategoryCount('pending')}
-        highlight
-      />
-      <TabButton
-        active={activeCategory === 'finished'}
-        onClick={() => onCategoryChange('finished')}
-        label="Histórico"
-        count={getCategoryCount('finished')}
-      />
-      <TabButton
-        active={activeCategory === 'ranking'}
-        onClick={() => onCategoryChange('ranking')}
-        label="Ranking"
-        count={0}
-      />
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-1.5">
+      <div className="flex gap-1 overflow-x-auto no-scrollbar">
+        <TabButton
+          active={activeCategory === 'open'}
+          onClick={() => onCategoryChange('open')}
+          label="Abertas"
+          count={getCategoryCount('open')}
+        />
+        <TabButton
+          active={activeCategory === 'pending'}
+          onClick={() => onCategoryChange('pending')}
+          label="Votar"
+          count={getCategoryCount('pending')}
+          highlight
+        />
+        <TabButton
+          active={activeCategory === 'finished'}
+          onClick={() => onCategoryChange('finished')}
+          label="Histórico"
+          count={getCategoryCount('finished')}
+        />
+        <TabButton
+          active={activeCategory === 'ranking'}
+          onClick={() => onCategoryChange('ranking')}
+          label="Ranking"
+          count={0}
+        />
+      </div>
     </div>
   );
 };
@@ -52,7 +54,7 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, label, count, highlight }) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 min-w-fit ${
+    className={`flex min-w-[110px] flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.14em] transition-all sm:min-w-fit sm:text-xs ${
       active
         ? highlight
           ? 'bg-orange-600 text-slate-950 shadow-lg shadow-orange-600/20'
@@ -63,7 +65,7 @@ const TabButton: React.FC<{
     {label}
     {count > 0 && (
       <span
-        className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none ${
+        className={`rounded-full px-1.5 py-0.5 text-[10px] leading-none ${
           active
             ? 'bg-slate-950/20 text-slate-950'
             : highlight
@@ -76,4 +78,3 @@ const TabButton: React.FC<{
     )}
   </button>
 );
-

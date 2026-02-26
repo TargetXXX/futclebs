@@ -230,12 +230,12 @@ export default function DashboardHome() {
   return (
     <Layout style={{ minHeight: "100vh", background: "transparent" }}>
       <UniversalNavbar />
-      <Content style={{ maxWidth: 1200, width: "100%", margin: "0 auto", padding: "30px 16px 40px" }}>
-        <Card style={{ marginBottom: 18, borderRadius: 24 }}>
+      <Content style={{ maxWidth: 1200, width: "100%", margin: "0 auto", padding: "20px 14px 40px" }}>
+        <Card style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(51,65,85,0.45)", background: "rgba(2,6,23,0.72)", backdropFilter: "blur(8px)" }}>
           <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
             <Space direction="vertical" size={4}>
-              <Title level={2} style={{ margin: 0 }}>Home Dashboard Futclebs</Title>
-              <Text type="secondary">Gerencie suas organizações com filtros inteligentes e visual moderno.</Text>
+              <Title level={2} style={{ margin: 0, color: "#f8fafc", fontSize: "clamp(1.25rem, 3.5vw, 1.8rem)" }}>Home Dashboard Futclebs</Title>
+              <Text style={{ color: "#94a3b8" }}>Gerencie suas organizações com filtros inteligentes e visual moderno.</Text>
             </Space>
             <Space>
               <Button type="primary" size="large" onClick={() => setJoinOpen(true)}>
@@ -264,7 +264,7 @@ export default function DashboardHome() {
           </Card>
         )}
 
-        <Card style={{ marginBottom: 18, borderRadius: 16 }}>
+        <Card style={{ marginBottom: 18, borderRadius: 16, border: "1px solid rgba(51,65,85,0.45)" }}>
           <Space direction="vertical" size={14} style={{ width: "100%" }}>
             <Flex justify="space-between" align="center" wrap="wrap" gap={8}>
               <Text><FilterOutlined /> Filtros</Text>
