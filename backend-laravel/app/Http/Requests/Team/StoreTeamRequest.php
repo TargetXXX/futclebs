@@ -17,6 +17,9 @@ class StoreTeamRequest extends FormRequest
             'tournament_id' => ['required', 'exists:tournaments,id'],
             'name' => ['required', 'string', 'max:255'],
             'logo' => ['nullable', 'string'],
+            'coach_id' => ['nullable', 'exists:players,id'],
+            'player_ids' => ['sometimes', 'array'],
+            'player_ids.*' => ['integer', 'distinct', 'exists:players,id'],
         ];
     }
 }

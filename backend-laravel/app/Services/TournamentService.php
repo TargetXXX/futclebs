@@ -10,7 +10,7 @@ class TournamentService
     public function getByOrganization(int $organizationId)
     {
         return Tournament::where('organization_id', $organizationId)
-            ->with(['teams', 'matches.result'])
+            ->with(['teams.players', 'teams.coach', 'matches.result'])
             ->get();
     }
 
@@ -31,13 +31,13 @@ class TournamentService
                 );
             }
 
-            return $tournament->load('teams');
+            return $tournament->load('teams.players', 'teams.coach');
         });
     }
 
     public function findWithRelations(Tournament $tournament): Tournament
     {
-        return $tournament->load('teams', 'standings', 'matches');
+        return $tournament->load('teams.players', 'teams.coach', 'standings', 'matches');
     }
 
     public function update(Tournament $tournament, array $data): Tournament
