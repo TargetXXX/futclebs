@@ -8,6 +8,7 @@ class Team extends Model
     protected $fillable = [
         'tournament_id',
         'name',
+        'coach_id',
         'logo',
         'description'
     ];
@@ -19,6 +20,13 @@ class Team extends Model
 
     public function players()
     {
-        return $this->belongsToMany(Player::class, 'team_players');
+        return $this->belongsToMany(Player::class, 'team_players')
+            ->withPivot(['is_captain'])
+            ->withTimestamps();
+    }
+
+    public function coach()
+    {
+        return $this->belongsTo(Player::class, 'coach_id');
     }
 }

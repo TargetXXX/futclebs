@@ -12,6 +12,7 @@ import {
   Modal,
   Popconfirm,
   Row,
+  Select,
   Space,
   Spin,
   Statistic,
@@ -31,6 +32,9 @@ interface TeamData {
   id: number;
   tournament_id: number;
   name: string;
+  coach_id?: number | null;
+  coach?: OrganizationPlayer | null;
+  players?: OrganizationPlayer[];
 }
 
 interface MatchResult {
@@ -60,6 +64,7 @@ interface TournamentData {
 
 interface OrganizationPlayer {
   id: number;
+  name: string;
   pivot?: { is_admin?: boolean };
 }
 
@@ -113,6 +118,15 @@ export default function TournamentDetails() {
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TeamData | null>(null);
   const [teamName, setTeamName] = useState("");
+  const [teamPlayerIds, setTeamPlayerIds] = useState<number[]>([]);
+  const [teamCoachId, setTeamCoachId] = useState<number | null>(null);
+
+  const organizationPlayers = useMemo(() => organization?.players ?? [], [organization?.players]);
+
+  const selectedPlayersByModal = useMemo(
+    () => organizationPlayers.filter((player) => teamPlayerIds.includes(Number(player.id))),
+    [organizationPlayers, teamPlayerIds],
+  );
 
   const fetchData = async () => {
     if (!orgId || !tournamentId) return;
@@ -244,6 +258,8 @@ export default function TournamentDetails() {
   const openTeamModal = (team?: TeamData) => {
     setEditingTeam(team ?? null);
     setTeamName(team?.name ?? "");
+    setTeamPlayerIds((team?.players ?? []).map((player) => Number(player.id)).filter((id) => id > 0));
+    setTeamCoachId(team?.coach_id ? Number(team.coach_id) : null);
     setIsTeamModalOpen(true);
   };
 
@@ -251,19 +267,41 @@ export default function TournamentDetails() {
     event.preventDefault();
     if (!teamName.trim() || !tournamentId || !isAdmin) return;
 
+    const normalizedPlayers = Array.from(new Set(teamPlayerIds.map((id) => Number(id)).filter((id) => id > 0)));
+    const hasCoachOutsideRoster = Boolean(teamCoachId && !normalizedPlayers.includes(teamCoachId));
+
+    const payloadPlayerIds = hasCoachOutsideRoster
+      ? Array.from(new Set([...normalizedPlayers, teamCoachId as number]))
+      : normalizedPlayers;
+
+    if (hasCoachOutsideRoster) {
+      messageApi.info("Técnico adicionado automaticamente ao elenco do time.");
+    }
+
     setIsBusy(true);
     try {
       if (editingTeam) {
-        await api.put(`/teams/${editingTeam.id}`, { name: teamName.trim() });
+        await api.put(`/teams/${editingTeam.id}`, {
+          name: teamName.trim(),
+          player_ids: payloadPlayerIds,
+          coach_id: teamCoachId,
+        });
         messageApi.success("Time atualizado com sucesso.");
       } else {
-        await api.post("/teams", { tournament_id: Number(tournamentId), name: teamName.trim() });
+        await api.post("/teams", {
+          tournament_id: Number(tournamentId),
+          name: teamName.trim(),
+          player_ids: payloadPlayerIds,
+          coach_id: teamCoachId,
+        });
         messageApi.success("Time cadastrado com sucesso.");
       }
 
       setIsTeamModalOpen(false);
       setEditingTeam(null);
       setTeamName("");
+      setTeamPlayerIds([]);
+      setTeamCoachId(null);
       await fetchData();
     } catch {
       messageApi.error("Não foi possível salvar o time.");
@@ -349,6 +387,10 @@ export default function TournamentDetails() {
                 ] : []}
               >
                 <Text className="!text-white">{team.name}</Text>
+                <Space wrap>
+                  <Tag color="cyan">Jogadores: {team.players?.length ?? 0}</Tag>
+                  <Tag color="gold">Técnico: {team.coach?.name ?? "Não definido"}</Tag>
+                </Space>
               </List.Item>
             )}
           />
@@ -432,7 +474,7 @@ export default function TournamentDetails() {
 
       <Modal
         open={isTeamModalOpen}
-        onCancel={() => setIsTeamModalOpen(false)}
+        onCancel={() => { setIsTeamModalOpen(false); setEditingTeam(null); setTeamName(""); setTeamPlayerIds([]); setTeamCoachId(null); }}
         footer={null}
         title={editingTeam ? "Editar time" : "Cadastrar time"}
       >
@@ -443,6 +485,38 @@ export default function TournamentDetails() {
             onChange={(event) => setTeamName(event.target.value)}
             placeholder="Nome do time"
             required
+          />
+          <Select
+            mode="multiple"
+            className="w-full"
+            placeholder="Selecione os jogadores do time"
+            value={teamPlayerIds}
+            onChange={(values) => setTeamPlayerIds((values as number[]).map((value) => Number(value)))}
+            options={(organization?.players ?? []).map((player) => ({
+              label: player.name,
+              value: Number(player.id),
+            }))}
+            optionFilterProp="label"
+            showSearch
+          />
+          <Space wrap>
+            {selectedPlayersByModal.map((player) => (
+              <Tag key={player.id} color="cyan">{player.name}</Tag>
+            ))}
+            {selectedPlayersByModal.length === 0 && <Text className="!text-slate-400">Nenhum jogador selecionado.</Text>}
+          </Space>
+          <Select
+            allowClear
+            className="w-full"
+            placeholder="Selecione o técnico"
+            value={teamCoachId ?? undefined}
+            onChange={(value) => setTeamCoachId(value ? Number(value) : null)}
+            options={(organization?.players ?? []).map((player) => ({
+              label: player.name,
+              value: Number(player.id),
+            }))}
+            optionFilterProp="label"
+            showSearch
           />
           <Button className={primaryButtonClass} type="primary" htmlType="submit" loading={isBusy} block>
             Salvar

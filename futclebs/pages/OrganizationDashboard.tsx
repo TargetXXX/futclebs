@@ -46,6 +46,9 @@ interface TeamData {
   tournament_id: number;
   name: string;
   logo?: string | null;
+  coach_id?: number | null;
+  coach?: { id: number; name: string } | null;
+  players?: { id: number; name: string }[];
 }
 
 interface MatchData {
@@ -290,6 +293,29 @@ export default function OrganizationDashboard() {
 
   const selectedTournamentTeams = selectedMatchTournament?.teams ?? [];
 
+  const selectedTournamentTeamOptions = useMemo(
+    () => selectedTournamentTeams.map((team) => {
+      const playersCount = team.players?.length ?? 0;
+      const coachLabel = team.coach?.name ? ` • Técnico: ${team.coach.name}` : "";
+      return {
+        value: String(team.id),
+        label: `${team.name} (${playersCount} jogadores${coachLabel})`,
+        disabled: playersCount === 0,
+      };
+    }),
+    [selectedTournamentTeams],
+  );
+
+  const selectedTeamAData = useMemo(
+    () => selectedTournamentTeams.find((team) => String(team.id) === newMatchTeamAId) ?? null,
+    [selectedTournamentTeams, newMatchTeamAId],
+  );
+
+  const selectedTeamBData = useMemo(
+    () => selectedTournamentTeams.find((team) => String(team.id) === newMatchTeamBId) ?? null,
+    [selectedTournamentTeams, newMatchTeamBId],
+  );
+
   const lineupPlayersById = useMemo(
     () => new Map(lineupPlayers.map((player) => [player.id, player])),
     [lineupPlayers],
@@ -505,6 +531,13 @@ export default function OrganizationDashboard() {
     if (isTournamentMatch && newMatchTeamAId === newMatchTeamBId) {
       messageApi.warning("Os times da partida precisam ser diferentes.");
       return;
+    }
+
+    if (isTournamentMatch) {
+      if ((selectedTeamAData?.players?.length ?? 0) === 0 || (selectedTeamBData?.players?.length ?? 0) === 0) {
+        messageApi.warning("Os dois times precisam ter elenco antes de criar a partida.");
+        return;
+      }
     }
 
     setIsBusy(true);
@@ -1076,13 +1109,20 @@ export default function OrganizationDashboard() {
           {newMatchTournamentId !== "none" && (
             <>
               <Text className="!text-[#7b93bf]">Escolha os times pré-cadastrados no torneio</Text>
+              {selectedTournamentTeams.length === 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  message="Esse torneio ainda não possui times cadastrados."
+                />
+              )}
               <Select
                 placeholder="Time A"
                 value={newMatchTeamAId || undefined}
                 onChange={setNewMatchTeamAId}
                 style={{ width: "100%" }}
                 className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
-                options={selectedTournamentTeams.map((team) => ({ value: String(team.id), label: team.name }))}
+                options={selectedTournamentTeamOptions}
               />
               <Select
                 placeholder="Time B"
@@ -1090,10 +1130,29 @@ export default function OrganizationDashboard() {
                 onChange={setNewMatchTeamBId}
                 style={{ width: "100%" }}
                 className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
-                options={selectedTournamentTeams
-                  .filter((team) => String(team.id) !== newMatchTeamAId)
-                  .map((team) => ({ value: String(team.id), label: team.name }))}
+                options={selectedTournamentTeamOptions.filter((team) => team.value !== newMatchTeamAId)}
               />
+              {(selectedTeamAData || selectedTeamBData) && (
+                <Alert
+                  type="info"
+                  showIcon
+                  message="Resumo dos elencos selecionados"
+                  description={
+                    <Space direction="vertical" size={4}>
+                      {selectedTeamAData && (
+                        <Text className="!text-slate-200">
+                          {selectedTeamAData.name}: {selectedTeamAData.players?.length ?? 0} jogadores • Técnico: {selectedTeamAData.coach?.name ?? "Não definido"}
+                        </Text>
+                      )}
+                      {selectedTeamBData && (
+                        <Text className="!text-slate-200">
+                          {selectedTeamBData.name}: {selectedTeamBData.players?.length ?? 0} jogadores • Técnico: {selectedTeamBData.coach?.name ?? "Não definido"}
+                        </Text>
+                      )}
+                    </Space>
+                  }
+                />
+              )}
             </>
           )}
 
