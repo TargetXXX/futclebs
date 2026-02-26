@@ -9,6 +9,11 @@ class MatchResource extends JsonResource
 {
     public function toArray($request)
     {
+        $tournament = $this->whenLoaded('tournament');
+        $teamA = $this->whenLoaded('teamA');
+        $teamB = $this->whenLoaded('teamB');
+        $result = $this->whenLoaded('result');
+
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -22,14 +27,13 @@ class MatchResource extends JsonResource
             'team_a_id' => $this->team_a_id,
             'team_b_id' => $this->team_b_id,
 
-            'tournament' => new TournamentResource($this->whenLoaded('tournament')),
-            'team_a' => new TeamResource($this->whenLoaded('teamA')),
-            'team_b' => new TeamResource($this->whenLoaded('teamB')),
+            'tournament' => $tournament ? new TournamentResource($tournament) : null,
+            'team_a' => $teamA ? new TeamResource($teamA) : null,
+            'team_b' => $teamB ? new TeamResource($teamB) : null,
 
             'players' => PlayerResource::collection($this->whenLoaded('players')),
-            'result' => new MatchResultResource($this->whenLoaded('result')),
+            'result' => $result ? new MatchResultResource($result) : null,
             'comments' => MatchCommentResource::collection($this->whenLoaded('comments')),
         ];
     }
 }
-

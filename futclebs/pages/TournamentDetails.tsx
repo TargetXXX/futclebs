@@ -22,7 +22,7 @@ import {
   Typography,
   message,
 } from "antd";
-import { ArrowLeftOutlined, PlusOutlined, TeamOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, PlusOutlined, ShuffleOutlined, TeamOutlined } from "@ant-design/icons";
 import { TeamPreset, loadTeamPresets } from "@/utils/teamPresets";
 
 type TournamentType = "league" | "knockout";
@@ -52,6 +52,11 @@ interface MatchData {
   team_a_id?: number | null;
   team_b_id?: number | null;
   result?: MatchResult | null;
+}
+
+interface KnockoutRound {
+  round: number;
+  matches: MatchData[];
 }
 
 interface TournamentData {
@@ -116,6 +121,26 @@ const formatDateTimeLabel = (dateValue: string) => {
   return date.toLocaleString("pt-BR");
 };
 
+const shuffleArray = <T,>(items: T[]) => {
+  const cloned = [...items];
+  for (let index = cloned.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [cloned[index], cloned[randomIndex]] = [cloned[randomIndex], cloned[index]];
+  }
+  return cloned;
+};
+
+const parseMatchRound = (match: MatchData) => {
+  const label = match.name ?? "";
+  const roundMatch = label.match(/rodada\s*(\d+)/i) ?? label.match(/round\s*(\d+)/i);
+  if (roundMatch) return Number(roundMatch[1]);
+
+  const stageMatch = label.match(/semi/i);
+  if (stageMatch) return 2;
+  if (label.match(/final/i)) return 3;
+  return null;
+};
+
 export default function TournamentDetails() {
   const { orgId, tournamentId } = useParams();
   const navigate = useNavigate();
@@ -136,6 +161,7 @@ export default function TournamentDetails() {
   const [playersModalTeam, setPlayersModalTeam] = useState<TeamData | null>(null);
   const [teamPresets, setTeamPresets] = useState<TeamPreset[]>([]);
   const [selectedPresetId, setSelectedPresetId] = useState<string>("none");
+  const [drawMode, setDrawMode] = useState<"random" | "ranking">("random");
 
   const organizationPlayers = useMemo(() => organization?.players ?? [], [organization?.players]);
 
@@ -342,16 +368,130 @@ export default function TournamentDetails() {
     });
   }, [sortedMatches, teamById]);
 
-  const knockoutRounds = useMemo(() => {
-    const finished = sortedMatches.filter((match) => match.status === "finished");
-    const open = sortedMatches.filter((match) => match.status !== "finished");
-    const entries = finished.length > 0 ? finished : open;
+  const teamRanking = useMemo(() => {
+    if ((tournament?.teams?.length ?? 0) === 0) return [];
 
-    return entries.map((match, index) => {
-      const round = Math.floor(index / 2) + 1;
-      return { ...match, round };
+    const baseMap = new Map<number, number>();
+    (tournament?.teams ?? []).forEach((team) => {
+      const averageOverall = (team.players ?? []).length
+        ? (team.players ?? []).reduce((sum, player) => sum + Number(player.pivot?.overall ?? 0), 0) /
+          (team.players ?? []).length
+        : 0;
+      baseMap.set(team.id, averageOverall);
     });
-  }, [sortedMatches]);
+
+    const scoreMap = new Map<number, number>();
+    (tournament?.teams ?? []).forEach((team) => {
+      scoreMap.set(team.id, baseMap.get(team.id) ?? 0);
+    });
+
+    sortedMatches
+      .filter((match) => match.status === "finished")
+      .forEach((match) => {
+        if (!match.team_a_id || !match.team_b_id) return;
+
+        const goalsA = Number(match.result?.goals_team_a ?? 0);
+        const goalsB = Number(match.result?.goals_team_b ?? 0);
+
+        if (goalsA > goalsB) {
+          scoreMap.set(match.team_a_id, (scoreMap.get(match.team_a_id) ?? 0) + 3);
+        } else if (goalsB > goalsA) {
+          scoreMap.set(match.team_b_id, (scoreMap.get(match.team_b_id) ?? 0) + 3);
+        } else {
+          scoreMap.set(match.team_a_id, (scoreMap.get(match.team_a_id) ?? 0) + 1);
+          scoreMap.set(match.team_b_id, (scoreMap.get(match.team_b_id) ?? 0) + 1);
+        }
+      });
+
+    return [...(tournament?.teams ?? [])].sort((teamA, teamB) => {
+      const scoreA = scoreMap.get(teamA.id) ?? 0;
+      const scoreB = scoreMap.get(teamB.id) ?? 0;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return teamA.name.localeCompare(teamB.name);
+    });
+  }, [sortedMatches, tournament?.teams]);
+
+  const knockoutRounds = useMemo<KnockoutRound[]>(() => {
+    const grouped = new Map<number, MatchData[]>();
+
+    sortedMatches.forEach((match) => {
+      const parsedRound = parseMatchRound(match);
+      const fallbackRound = Math.max(1, Math.floor(Math.log2((tournament?.teams?.length ?? 2) / 2)) + 1);
+      const round = parsedRound ?? fallbackRound;
+      const current = grouped.get(round) ?? [];
+      current.push(match);
+      grouped.set(round, current);
+    });
+
+    return [...grouped.entries()]
+      .sort(([roundA], [roundB]) => roundA - roundB)
+      .map(([round, roundMatches]) => ({
+        round,
+        matches: roundMatches.sort(
+          (matchA, matchB) => new Date(matchA.match_date).getTime() - new Date(matchB.match_date).getTime(),
+        ),
+      }));
+  }, [sortedMatches, tournament?.teams?.length]);
+
+  const createKnockoutBracket = async (mode: "random" | "ranking") => {
+    if (!isAdmin || !tournamentId || tournament?.type !== "knockout") return;
+
+    const teams = [...(tournament?.teams ?? [])];
+    if (teams.length < 2) {
+      messageApi.warning("Cadastre pelo menos dois times para gerar os confrontos.");
+      return;
+    }
+
+    if (teams.length % 2 !== 0) {
+      messageApi.warning("Para gerar mata-mata automático, o torneio precisa de quantidade par de times.");
+      return;
+    }
+
+    if (matches.length > 0) {
+      messageApi.warning("Já existem partidas cadastradas neste torneio. Remova-as para gerar uma nova chave automática.");
+      return;
+    }
+
+    const baseTeams = mode === "ranking" ? teamRanking : shuffleArray(teams);
+    const pairings = mode === "ranking"
+      ? baseTeams.slice(0, Math.floor(baseTeams.length / 2)).map((team, index) => {
+          const opponent = baseTeams[baseTeams.length - 1 - index];
+          return [team, opponent] as const;
+        })
+      : baseTeams.reduce<Array<readonly [TeamData, TeamData]>>((accumulator, _, index, allTeams) => {
+          if (index % 2 === 0 && allTeams[index + 1]) {
+            accumulator.push([allTeams[index], allTeams[index + 1]]);
+          }
+          return accumulator;
+        }, []);
+
+    setIsBusy(true);
+    try {
+      await Promise.all(
+        pairings.map(([teamA, teamB], index) =>
+          api.post("/matches", {
+            organization_id: Number(orgId),
+            tournament_id: Number(tournamentId),
+            team_a_id: teamA.id,
+            team_b_id: teamB.id,
+            name: `Rodada 1 • Jogo ${index + 1}`,
+            match_date: new Date(Date.now() + index * 60 * 60 * 1000).toISOString(),
+          }),
+        ),
+      );
+
+      messageApi.success(
+        mode === "ranking"
+          ? "Chave mata-mata gerada por ranking com sucesso."
+          : "Sorteio realizado com sucesso e confrontos criados automaticamente.",
+      );
+      await fetchData();
+    } catch {
+      messageApi.error("Não foi possível gerar a chave automática.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
 
   const openTeamModal = (team?: TeamData) => {
     setEditingTeam(team ?? null);
@@ -583,28 +723,51 @@ export default function TournamentDetails() {
 
         {tournament.type === "knockout" ? (
           <Card title={<span className="text-white">Chave mata-mata</span>} className="!rounded-2xl !bg-slate-900/80 !border-slate-700">
+            {isAdmin && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Select
+                  value={drawMode}
+                  onChange={(value) => setDrawMode(value as "random" | "ranking")}
+                  options={[
+                    { value: "random", label: "Sorteio aleatório" },
+                    { value: "ranking", label: "Seed por ranking" },
+                  ]}
+                  style={{ minWidth: 220 }}
+                />
+                <Button
+                  icon={<ShuffleOutlined />}
+                  className={primaryButtonClass}
+                  type="primary"
+                  loading={isBusy}
+                  onClick={() => createKnockoutBracket(drawMode)}
+                >
+                  Gerar chave automática
+                </Button>
+              </div>
+            )}
+
             {knockoutRounds.length === 0 ? (
               <Empty description="Sem confrontos para montar chave" />
             ) : (
               <Steps
                 direction="vertical"
-                items={knockoutRounds.map((match) => {
+                items={knockoutRounds.flatMap((roundEntry) => roundEntry.matches.map((match) => {
                   const teamA = match.team_a_id ? teamById.get(match.team_a_id) : null;
                   const teamB = match.team_b_id ? teamById.get(match.team_b_id) : null;
                   return {
-                    title: `Rodada ${match.round}: ${teamA?.name ?? "Time A"} x ${teamB?.name ?? "Time B"}`,
+                    title: `Rodada ${roundEntry.round}: ${teamA?.name ?? "Time A"} x ${teamB?.name ?? "Time B"}`,
                     description: match.status === "finished"
                       ? `Finalizada${typeof match.result?.goals_team_a === "number" && typeof match.result?.goals_team_b === "number" ? ` • ${match.result.goals_team_a} - ${match.result.goals_team_b}` : ""}`
                       : "Aguardando resultado",
                   };
-                })}
+                }))}
               />
             )}
             <Alert
               className="mt-3"
               type="info"
               showIcon
-              message="A chave é exibida pela ordem cronológica das partidas cadastradas."
+              message="A chave agora pode ser gerada automaticamente por sorteio ou por ranking (seed), sem depender da ordem de cadastro das partidas."
             />
           </Card>
         ) : (

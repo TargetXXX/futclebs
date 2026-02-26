@@ -567,6 +567,25 @@ export default function OrganizationDashboard() {
     messageApi.success("Time pré-cadastrado removido.");
   };
 
+  const removeOrganizationPlayer = async (playerId: number) => {
+    if (!orgId || !isAdmin) return;
+
+    setIsBusy(true);
+    try {
+      await api.delete(`/organizations/${orgId}/players/${playerId}`);
+      messageApi.success("Jogador removido da organização com sucesso.");
+      await fetchDashboardData();
+    } catch (error: any) {
+      const backendMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.errors?.organization?.[0] ||
+        "Não foi possível remover o jogador da organização.";
+      messageApi.error(backendMessage);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
   const importPresetNamesToTournament = () => {
     const merged = Array.from(new Set([...newTournamentTeams, ...teamPresets.map((preset) => preset.name)]));
     setNewTournamentTeams(merged);
@@ -918,6 +937,35 @@ export default function OrganizationDashboard() {
 
         {activeTab === "tournaments" && (
           <div className="space-y-5">
+            {isAdmin && (
+              <Card className="!bg-slate-900/80 !border-slate-700 !rounded-2xl !shadow-xl !shadow-black/20" title={<span className="text-white">Painel Superadmin da Organização</span>}>
+                <Text className="!text-slate-300">
+                  Remova jogadores da organização com segurança. Esta ação não apaga a conta global do jogador, apenas seu vínculo com esta org.
+                </Text>
+                <div className="mt-3 space-y-2 max-h-72 overflow-auto">
+                  {(organization?.players ?? []).map((player) => (
+                    <div key={`org-player-${player.id}`} className="flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/60 px-3 py-2">
+                      <Space>
+                        <Text className="!text-slate-100">{player.name}</Text>
+                        {player.pivot?.is_admin && <Tag color="gold">Admin</Tag>}
+                      </Space>
+                      <Popconfirm
+                        title="Remover jogador da organização?"
+                        description="Essa ação remove o vínculo do jogador com a organização atual."
+                        okText="Remover"
+                        cancelText="Cancelar"
+                        onConfirm={() => removeOrganizationPlayer(Number(player.id))}
+                      >
+                        <Button danger size="small" loading={isBusy} disabled={Number(player.id) === Number(user?.id)}>
+                          Retirar da org
+                        </Button>
+                      </Popconfirm>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             <Card className="!bg-slate-900/80 !border-slate-700 !rounded-2xl !shadow-xl !shadow-black/20">
               <Title level={4} className="!text-white">Central de Torneios</Title>
               <Text className="!text-slate-300">

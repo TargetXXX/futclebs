@@ -32,6 +32,21 @@ class PlayerVoteService
             ]);
         }
 
+        $voterTeam = $this->resolvePlayerTeam($match, (int) $user->id);
+        $targetTeam = $this->resolvePlayerTeam($match, (int) $data['target_player_id']);
+
+        if ($voterTeam === null || $targetTeam === null) {
+            throw ValidationException::withMessages([
+                'match' => 'Defina as escalações dos dois times antes de liberar a votação.',
+            ]);
+        }
+
+        if ($voterTeam !== $targetTeam) {
+            throw ValidationException::withMessages([
+                'target_player_id' => 'Você só pode votar em jogadores do seu próprio time.',
+            ]);
+        }
+
         return PlayerVote::updateOrCreate(
             [
                 'match_id' => $match->id,
@@ -45,7 +60,14 @@ class PlayerVoteService
 
     public function statusByMatch(MatchModel $match): array
     {
-        $players = $match->players()->get(['players.id', 'players.name']);
+        $players = $match->players()
+            ->withPivot(['team'])
+            ->get(['players.id', 'players.name']);
+
+        $playersByTeam = $players
+            ->groupBy(fn ($player) => (int) ($player->pivot->team ?? 0))
+            ->filter(fn ($group, $team) => in_array((int) $team, [1, 2], true));
+
         $participantIds = $players->pluck('id')->values();
 
         $votes = PlayerVote::query()
@@ -55,26 +77,65 @@ class PlayerVoteService
             ->get(['voter_id', 'target_player_id']);
 
         $votesByVoter = $votes->groupBy('voter_id')->map(fn ($group) => $group->pluck('target_player_id')->unique()->values());
-        $requiredVotesPerPlayer = max($participantIds->count() - 1, 0);
+
+        $requiredVotesByPlayer = $players->mapWithKeys(function ($player) use ($playersByTeam) {
+            $team = (int) ($player->pivot->team ?? 0);
+            $required = max(($playersByTeam->get($team)?->count() ?? 0) - 1, 0);
+            return [$player->id => $required];
+        });
 
         return [
             'match_id' => $match->id,
             'players_count' => $participantIds->count(),
-            'required_votes_per_player' => $requiredVotesPerPlayer,
-            'players' => $players->map(function ($player) use ($votesByVoter, $requiredVotesPerPlayer) {
+            'players' => $players->map(function ($player) use ($votesByVoter, $requiredVotesByPlayer) {
                 $givenVotes = $votesByVoter->get($player->id, collect());
+                $requiredVotes = (int) ($requiredVotesByPlayer->get($player->id) ?? 0);
                 return [
                     'id' => $player->id,
                     'name' => $player->name,
+                    'team' => (int) ($player->pivot->team ?? 0),
+                    'required_votes' => $requiredVotes,
                     'votes_given' => $givenVotes->count(),
-                    'votes_missing' => max($requiredVotesPerPlayer - $givenVotes->count(), 0),
+                    'votes_missing' => max($requiredVotes - $givenVotes->count(), 0),
                 ];
             })->values(),
-            'is_fully_voted' => $requiredVotesPerPlayer === 0
-                ? true
-                : $players->every(function ($player) use ($votesByVoter, $requiredVotesPerPlayer) {
-                    return $votesByVoter->get($player->id, collect())->count() >= $requiredVotesPerPlayer;
-                }),
+            'is_fully_voted' => $players->every(function ($player) use ($votesByVoter, $requiredVotesByPlayer) {
+                $requiredVotes = (int) ($requiredVotesByPlayer->get($player->id) ?? 0);
+                if ($requiredVotes === 0) {
+                    return true;
+                }
+
+                return $votesByVoter->get($player->id, collect())->count() >= $requiredVotes;
+            }),
         ];
+    }
+
+    private function resolvePlayerTeam(MatchModel $match, int $playerId): ?int
+    {
+        $teamFromPivot = $match->players()
+            ->where('player_id', $playerId)
+            ->value('match_players.team');
+
+        if (in_array((int) $teamFromPivot, [1, 2], true)) {
+            return (int) $teamFromPivot;
+        }
+
+        $result = $match->result;
+        if (!$result) {
+            return null;
+        }
+
+        $teamA = collect($result->players_team_a ?? [])->map(fn ($id) => (int) $id);
+        $teamB = collect($result->players_team_b ?? [])->map(fn ($id) => (int) $id);
+
+        if ($teamA->contains($playerId)) {
+            return 1;
+        }
+
+        if ($teamB->contains($playerId)) {
+            return 2;
+        }
+
+        return null;
     }
 }

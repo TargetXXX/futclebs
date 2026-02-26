@@ -11,6 +11,12 @@ interface Props {
 
 interface PlayerOption { id: number; name: string; }
 
+interface MatchPlayerPayload {
+  id: number;
+  name: string;
+  pivot?: { team?: number };
+}
+
 export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, currentUserId, onRefresh }) => {
   const [players, setPlayers] = useState<PlayerOption[]>([]);
   const [targetPlayerId, setTargetPlayerId] = useState<number | null>(null);
@@ -18,13 +24,29 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, cur
     velocidade: 5, finalizacao: 5, passe: 5, drible: 5, defesa: 5, esportividade: 5, fisico: 5,
   });
   const [error, setError] = useState<string | null>(null);
+  const [currentUserTeam, setCurrentUserTeam] = useState<number | null>(null);
   const votablePlayers = players.filter((p) => String(p.id) !== String(currentUserId));
 
   useEffect(() => {
     const load = async () => {
       if (!isOpen) return;
       const { data } = await api.get(`/matches/${matchId}/players`);
-      setPlayers((data || []).map((p: any) => ({ id: p.id, name: p.name })));
+      const payload = (data?.data ?? data ?? []) as MatchPlayerPayload[];
+
+      const normalizedPlayers = payload.map((player) => ({
+        id: Number(player.id),
+        name: player.name,
+        team: Number(player.pivot?.team ?? 0),
+      }));
+
+      const myTeam = normalizedPlayers.find((player) => String(player.id) === String(currentUserId))?.team ?? null;
+      setCurrentUserTeam(myTeam && myTeam > 0 ? myTeam : null);
+
+      const sameTeamPlayers = myTeam && myTeam > 0
+        ? normalizedPlayers.filter((player) => player.team === myTeam)
+        : normalizedPlayers;
+
+      setPlayers(sameTeamPlayers.map((player) => ({ id: player.id, name: player.name })));
     };
     load();
   }, [isOpen, matchId]);
@@ -37,7 +59,12 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, cur
       onRefresh();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Não foi possível registrar seu voto.");
+      const responseData = err?.response?.data;
+      const normalizedError =
+        responseData?.message ||
+        Object.values(responseData?.errors ?? {}).flat()?.[0] ||
+        "Não foi possível registrar seu voto.";
+      setError(String(normalizedError));
     }
   };
 
@@ -51,6 +78,9 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, cur
           <option value="">Selecione</option>
           {votablePlayers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
+        {currentUserTeam === null && (
+          <p className="text-amber-400 text-xs">Defina a escalação da partida para liberar votação por time.</p>
+        )}
         {error && <p className="text-red-400 text-xs">{error}</p>}
         {Object.keys(stats).map((k) => (
           <div key={k} className="flex items-center justify-between text-sm text-white">
@@ -59,7 +89,7 @@ export const PlayerVoteModal: React.FC<Props> = ({ isOpen, onClose, matchId, cur
           </div>
         ))}
         <div className="flex gap-2 pt-2">
-          <button onClick={submit} className="px-4 py-2 bg-emerald-600 rounded">Enviar voto</button>
+          <button onClick={submit} disabled={currentUserTeam === null} className="px-4 py-2 bg-emerald-600 rounded disabled:opacity-60 disabled:cursor-not-allowed">Enviar voto</button>
           <button onClick={onClose} className="px-4 py-2 bg-slate-700 rounded">Cancelar</button>
         </div>
       </div>
