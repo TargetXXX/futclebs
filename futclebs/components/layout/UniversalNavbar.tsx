@@ -1,9 +1,10 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Badge, Button, Dropdown, Layout, Space, Typography } from "antd";
+import { Badge, Button, Drawer, Dropdown, Layout, Space, Typography } from "antd";
 import {
   ClockCircleOutlined,
   HomeOutlined,
+  MenuOutlined,
   LogoutOutlined,
   PlusOutlined,
   SettingOutlined,
@@ -22,6 +23,7 @@ export const UniversalNavbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = React.useState(false);
+  const [menuOpen, setMenuOpen] = React.useState(false);
   const [liveClock, setLiveClock] = React.useState(() => new Date());
 
   React.useEffect(() => {
@@ -34,8 +36,14 @@ export const UniversalNavbar: React.FC = () => {
     { key: "join", label: "Organizações", icon: <TeamOutlined />, path: "/join" },
   ];
 
+  const orgIdFromPath = React.useMemo(() => {
+    const match = location.pathname.match(/\/dashboard\/org\/(\d+)/);
+    return match?.[1] ?? localStorage.getItem("orgId") ?? null;
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     await logout();
+    setMenuOpen(false);
     navigate("/login");
   };
 
@@ -76,6 +84,12 @@ export const UniversalNavbar: React.FC = () => {
 
         <Space size={12} align="center">
           <Badge color="#22d3ee" text={<Text className="universal-navbar__clock"><ClockCircleOutlined /> {liveClock.toLocaleTimeString("pt-BR")}</Text>} />
+
+          <Button
+            className="universal-navbar__mobile-menu"
+            icon={<MenuOutlined />}
+            onClick={() => setMenuOpen(true)}
+          />
 
           <Button icon={<PlusOutlined />} onClick={() => navigate("/join")}>
             Entrar em organização
@@ -121,6 +135,58 @@ export const UniversalNavbar: React.FC = () => {
           </Dropdown>
         </Space>
       </Header>
+
+      <Drawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        title="Navegação"
+        placement="right"
+      >
+        <Space direction="vertical" className="w-full" size={10}>
+          {quickLinks.map((link) => (
+            <Button
+              key={`mobile-${link.key}`}
+              icon={link.icon}
+              onClick={() => {
+                navigate(link.path);
+                setMenuOpen(false);
+              }}
+              type={isCurrentPath(link.path) ? "primary" : "default"}
+              block
+            >
+              {link.label}
+            </Button>
+          ))}
+
+          {orgIdFromPath && (
+            <Button
+              icon={<TeamOutlined />}
+              onClick={() => {
+                navigate(`/dashboard/org/${orgIdFromPath}`);
+                setMenuOpen(false);
+              }}
+              block
+            >
+              Voltar para organização
+            </Button>
+          )}
+
+          <Button
+            icon={<SettingOutlined />}
+            onClick={() => {
+              setProfileOpen(true);
+              setMenuOpen(false);
+            }}
+            block
+          >
+            Editar perfil
+          </Button>
+
+          <Button danger icon={<LogoutOutlined />} onClick={handleLogout} block>
+            Sair
+          </Button>
+        </Space>
+      </Drawer>
 
       {profileOpen && <ProfileModal onClose={() => setProfileOpen(false)} />}
     </>
