@@ -19,6 +19,9 @@ class StoreTournamentRequest extends FormRequest
             'type' => ['required', 'in:league,knockout'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+
+            'teams' => ['sometimes', 'array', 'min:2'],
+            'teams.*' => ['required_with:teams', 'string', 'min:2', 'max:255', 'distinct:ignore_case'],
         ];
     }
 }

@@ -3,8 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tournament;
-
-
+use Illuminate\Support\Facades\DB;
 
 class TournamentService
 {
@@ -17,7 +16,23 @@ class TournamentService
 
     public function create(array $data): Tournament
     {
-        return Tournament::create($data);
+        return DB::transaction(function () use ($data) {
+            $teams = collect($data['teams'] ?? [])
+                ->map(fn ($name) => trim((string) $name))
+                ->filter(fn ($name) => $name !== '')
+                ->unique(fn ($name) => mb_strtolower($name))
+                ->values();
+
+            $tournament = Tournament::create(collect($data)->except('teams')->all());
+
+            if ($teams->isNotEmpty()) {
+                $tournament->teams()->createMany(
+                    $teams->map(fn ($name) => ['name' => $name])->all()
+                );
+            }
+
+            return $tournament->load('teams');
+        });
     }
 
     public function findWithRelations(Tournament $tournament): Tournament

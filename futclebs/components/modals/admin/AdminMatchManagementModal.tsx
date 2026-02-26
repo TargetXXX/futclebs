@@ -15,7 +15,8 @@ export const AdminMatchManagementModal: React.FC<Props> = ({ isOpen, onClose, ma
     const load = async () => {
       if (!isOpen || !matchId) return;
       const { data } = await api.get(`/matches/${matchId}/players`);
-      setPlayers(data || []);
+      const payload = data?.data ?? data ?? [];
+      setPlayers(payload);
     };
     load();
   }, [isOpen, matchId]);
@@ -34,7 +35,8 @@ export const AdminMatchManagementModal: React.FC<Props> = ({ isOpen, onClose, ma
                 onClick={async () => {
                   await api.delete(`/matches/${matchId}/players/${p.id}`);
                   const { data } = await api.get(`/matches/${matchId}/players`);
-                  setPlayers(data || []);
+                  const payload = data?.data ?? data ?? [];
+                  setPlayers(payload);
                   onRefresh();
                 }}
                 className="text-red-400"

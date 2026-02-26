@@ -15,7 +15,8 @@ export const TeamSortingModal: React.FC<Props> = ({ isOpen, onClose, matchId, is
     const load = async () => {
       if (!isOpen || !matchId) return;
       const { data } = await api.get(`/matches/${matchId}/players`);
-      setPlayers(data || []);
+      const payload = data?.data ?? data ?? [];
+      setPlayers(payload);
     };
     load();
   }, [isOpen, matchId]);
