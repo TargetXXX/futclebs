@@ -36,6 +36,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
+import { TeamPreset, loadTeamPresets, saveTeamPresets } from "@/utils/teamPresets";
 
 type MatchStatus = "open" | "in_progress" | "finished";
 type DashboardTab = "open" | "pending" | "finished" | "ranking" | "tournaments";
@@ -150,6 +151,12 @@ export default function OrganizationDashboard() {
   const [newTournamentStartDate, setNewTournamentStartDate] = useState("");
   const [newTournamentTeams, setNewTournamentTeams] = useState<string[]>([]);
 
+  const [isPresetModalOpen, setIsPresetModalOpen] = useState(false);
+  const [presetName, setPresetName] = useState("");
+  const [presetPlayerIds, setPresetPlayerIds] = useState<number[]>([]);
+  const [presetCoachId, setPresetCoachId] = useState<number | null>(null);
+  const [teamPresets, setTeamPresets] = useState<TeamPreset[]>([]);
+
   const [rankingSearch, setRankingSearch] = useState("");
   const [rankingPositionFilter, setRankingPositionFilter] = useState("all");
   const [selectedPlayer, setSelectedPlayer] = useState<OrganizationPlayer | null>(null);
@@ -225,6 +232,11 @@ export default function OrganizationDashboard() {
   useEffect(() => {
     if (orgId) localStorage.setItem("orgId", orgId);
     fetchDashboardData();
+  }, [orgId]);
+
+
+  useEffect(() => {
+    setTeamPresets(loadTeamPresets(orgId));
   }, [orgId]);
 
   useEffect(() => {
@@ -518,6 +530,49 @@ export default function OrganizationDashboard() {
     setActiveTab("open");
   };
 
+  const upsertTeamPreset = () => {
+    if (!orgId || !presetName.trim()) {
+      messageApi.warning("Informe o nome do time pré-cadastrado.");
+      return;
+    }
+
+    const normalizedName = presetName.trim();
+    const duplicate = teamPresets.find((preset) => preset.name.toLocaleLowerCase() === normalizedName.toLocaleLowerCase());
+
+    const nextPreset: TeamPreset = {
+      id: duplicate?.id ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: normalizedName,
+      playerIds: Array.from(new Set(presetPlayerIds.map((id) => Number(id)).filter((id) => id > 0))),
+      coachId: presetCoachId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const nextPresets = duplicate
+      ? teamPresets.map((preset) => (preset.id === duplicate.id ? nextPreset : preset))
+      : [nextPreset, ...teamPresets];
+
+    setTeamPresets(nextPresets);
+    saveTeamPresets(orgId, nextPresets);
+    setPresetName("");
+    setPresetPlayerIds([]);
+    setPresetCoachId(null);
+    messageApi.success(duplicate ? "Time pré-cadastrado atualizado." : "Time pré-cadastrado criado.");
+  };
+
+  const removeTeamPreset = (presetId: string) => {
+    if (!orgId) return;
+    const nextPresets = teamPresets.filter((preset) => preset.id !== presetId);
+    setTeamPresets(nextPresets);
+    saveTeamPresets(orgId, nextPresets);
+    messageApi.success("Time pré-cadastrado removido.");
+  };
+
+  const importPresetNamesToTournament = () => {
+    const merged = Array.from(new Set([...newTournamentTeams, ...teamPresets.map((preset) => preset.name)]));
+    setNewTournamentTeams(merged);
+    messageApi.success("Times pré-cadastrados adicionados ao torneio.");
+  };
+
   const submitCreateMatch = async (event: FormEvent) => {
     event.preventDefault();
     if (!orgId || !newMatchDate) return;
@@ -544,7 +599,7 @@ export default function OrganizationDashboard() {
     try {
       await api.post("/matches", {
         organization_id: Number(orgId),
-        name: newMatchName.trim() || "Rachão Futclebs",
+        name: newMatchName.trim() || "Rachão BOLANOPE",
         match_date: formatDateForApi(newMatchDate),
         tournament_id: isTournamentMatch ? Number(newMatchTournamentId) : null,
         team_a_id: isTournamentMatch ? Number(newMatchTeamAId) : null,
@@ -641,7 +696,7 @@ export default function OrganizationDashboard() {
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <Text className="!text-[#7c93bf] !uppercase !tracking-[0.2em]">Futclebs • Organização</Text>
+            <Text className="!text-[#7c93bf] !uppercase !tracking-[0.2em]">BOLANOPE • Organização</Text>
             <Title level={2} className="!text-white !m-0">{user?.name}</Title>
             <Text className="!text-[#9bb1d9]">{organization.name}</Text>
           </div>
@@ -650,6 +705,11 @@ export default function OrganizationDashboard() {
             {isAdmin && (
               <Button className={primaryButtonClass} icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)}>
                 Novo torneio
+              </Button>
+            )}
+            {isAdmin && (
+              <Button className={actionButtonClass} icon={<TeamOutlined />} onClick={() => setIsPresetModalOpen(true)}>
+                Times da organização
               </Button>
             )}
             {isAdmin && (
@@ -720,7 +780,7 @@ export default function OrganizationDashboard() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <Title level={4} className="!text-white !m-0">{match.name || "Pelada Futclebs"}</Title>
+                      <Title level={4} className="!text-white !m-0">{match.name || "Pelada BOLANOPE"}</Title>
                       <Text className="!text-[#8ea4cf]"><CalendarOutlined /> {formatDateTimeLabel(match.match_date)}</Text>
                       {tournament && <div><Tag color="cyan">Torneio: {tournament.name}</Tag></div>}
                       {teamA && teamB && <div><Tag color="purple">{teamA.name} x {teamB.name}</Tag></div>}
@@ -1198,9 +1258,81 @@ export default function OrganizationDashboard() {
             style={{ width: "100%" }}
             className="[&_.ant-select-selector]:!rounded-xl [&_.ant-select-selector]:!border-slate-600 [&_.ant-select-selector]:!bg-slate-950/70 [&_.ant-select-selector]:!text-slate-100"
           />
+          <Space wrap>
+            <Button className={actionButtonClass} type="default" onClick={importPresetNamesToTournament} disabled={teamPresets.length === 0}>
+              Importar times da organização
+            </Button>
+            <Text className="!text-slate-400">{teamPresets.length} time(s) pré-cadastrado(s) disponível(is)</Text>
+          </Space>
           <Button className={primaryButtonClass} type="primary" htmlType="submit" loading={isBusy} block>Criar torneio com times</Button>
         </form>
       </Modal>
+
+      <Modal open={isPresetModalOpen} onCancel={() => setIsPresetModalOpen(false)} footer={null} title="Times pré-cadastrados da organização">
+        <div className="space-y-3">
+          <Input
+            className="!rounded-xl !border-slate-600 !bg-slate-950/70 !text-slate-100"
+            placeholder="Nome do time base"
+            value={presetName}
+            onChange={(event) => setPresetName(event.target.value)}
+          />
+          <Select
+            mode="multiple"
+            value={presetPlayerIds}
+            onChange={(values) => setPresetPlayerIds((values as number[]).map((value) => Number(value)))}
+            placeholder="Jogadores do time base"
+            style={{ width: "100%" }}
+            options={(organization?.players ?? []).map((player) => ({ label: player.name, value: Number(player.id) }))}
+            optionFilterProp="label"
+            showSearch
+          />
+          <Select
+            allowClear
+            value={presetCoachId ?? undefined}
+            onChange={(value) => setPresetCoachId(value ? Number(value) : null)}
+            placeholder="Técnico do time base"
+            style={{ width: "100%" }}
+            options={(organization?.players ?? []).map((player) => ({ label: player.name, value: Number(player.id) }))}
+            optionFilterProp="label"
+            showSearch
+          />
+          <Button className={primaryButtonClass} type="primary" onClick={upsertTeamPreset} block>
+            Salvar time pré-cadastrado
+          </Button>
+
+          <Divider className="!my-2" />
+          <List
+            dataSource={teamPresets}
+            locale={{ emptyText: "Nenhum time pré-cadastrado ainda." }}
+            renderItem={(preset) => (
+              <List.Item
+                actions={[
+                  <Button
+                    key={`use-${preset.id}`}
+                    type="link"
+                    className="!text-cyan-300"
+                    onClick={() => {
+                      setNewTournamentTeams((current) => Array.from(new Set([...current, preset.name])));
+                      messageApi.success(`${preset.name} adicionado aos times do torneio.`);
+                    }}
+                  >
+                    Usar no torneio
+                  </Button>,
+                  <Button key={`remove-${preset.id}`} type="link" danger onClick={() => removeTeamPreset(preset.id)}>
+                    Remover
+                  </Button>,
+                ]}
+              >
+                <Space direction="vertical" size={0}>
+                  <Text className="!text-white">{preset.name}</Text>
+                  <Text className="!text-slate-400 !text-xs">Jogadores base: {preset.playerIds.length} • Técnico: {(organization?.players ?? []).find((p) => p.id === preset.coachId)?.name ?? "Não definido"}</Text>
+                </Space>
+              </List.Item>
+            )}
+          />
+        </div>
+      </Modal>
+
     </div>
   );
 }

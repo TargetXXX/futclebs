@@ -258,7 +258,7 @@ export default function DashboardHome() {
         <Card style={{ marginBottom: 18, borderRadius: 24, border: "1px solid rgba(51,65,85,0.45)", background: "rgba(2,6,23,0.72)", backdropFilter: "blur(8px)" }}>
           <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
             <Space direction="vertical" size={4}>
-              <Title level={2} style={{ margin: 0, color: "#f8fafc", fontSize: "clamp(1.25rem, 3.5vw, 1.8rem)" }}>Home Dashboard Futclebs</Title>
+              <Title level={2} style={{ margin: 0, color: "#f8fafc", fontSize: "clamp(1.25rem, 3.5vw, 1.8rem)" }}>Home Dashboard BOLANOPE</Title>
               <Text style={{ color: "#94a3b8" }}>Gerencie suas organizações com filtros inteligentes e visual moderno.</Text>
             </Space>
             <Space>

@@ -10,7 +10,7 @@ interface CreateMatchModalProps {
 
 export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onClose, onRefresh }) => {
   const [matchDate, setMatchDate] = useState('');
-  const [matchName, setMatchName] = useState('Rachão Futclebs');
+  const [matchName, setMatchName] = useState('Rachão BOLANOPE');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,13 +27,13 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onCl
         organization_id: Number(organizationId),
         match_date: `${matchDate} 20:00:00`,
         tournament_id: null,
-        name: matchName.trim() || 'Rachão Futclebs',
+        name: matchName.trim() || 'Rachão BOLANOPE',
       });
 
       onRefresh();
       onClose();
       setMatchDate('');
-      setMatchName('Rachão Futclebs');
+      setMatchName('Rachão BOLANOPE');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erro ao criar partida');
     } finally {

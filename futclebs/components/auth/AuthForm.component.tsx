@@ -36,7 +36,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
   onLogin,
   onRegister
 }) => {
-  const getTitle = () => (step === Step.REGISTER ? 'Novo Craque' : 'FutClebs');
+  const getTitle = () => (step === Step.REGISTER ? 'Novo Craque' : 'BOLANOPE');
 
   const getSubtitle = () => {
     switch (step) {
