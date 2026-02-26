@@ -81,7 +81,6 @@ class MatchModel extends Model
     public function players()
     {
         return $this->belongsToMany(Player::class, 'match_players')
-            ->withPivot(['is_goalkeeper', 'team', 'goals', 'assists', 'minutes_played', 'yellow_cards', 'red_cards'])
             ->withTimestamps();
     }
 

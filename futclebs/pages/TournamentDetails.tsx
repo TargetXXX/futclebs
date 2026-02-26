@@ -141,6 +141,8 @@ const parseMatchRound = (match: MatchData) => {
   return null;
 };
 
+const asArray = <T,>(payload: unknown): T[] => (Array.isArray(payload) ? payload : []);
+
 export default function TournamentDetails() {
   const { orgId, tournamentId } = useParams();
   const navigate = useNavigate();
@@ -190,7 +192,12 @@ export default function TournamentDetails() {
   );
 
   const fetchData = async () => {
-    if (!orgId || !tournamentId) return;
+    if (!orgId || !tournamentId) {
+      setLoading(false);
+      setTournament(null);
+      setMatches([]);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -203,19 +210,17 @@ export default function TournamentDetails() {
 
       const orgPayload = orgResponse.data?.data ?? orgResponse.data;
       const mePayload = meResponse.data?.data ?? meResponse.data;
-      const tournamentsPayload = tournamentsResponse.data?.data ?? tournamentsResponse.data ?? [];
-      const matchesPayload = matchesResponse.data?.data ?? matchesResponse.data ?? [];
-
-      const selectedTournament = (tournamentsPayload as TournamentData[]).find(
-        (entry) => entry.id === Number(tournamentId),
+      const tournamentsPayload = asArray<TournamentData>(
+        tournamentsResponse.data?.data ?? tournamentsResponse.data,
       );
+      const matchesPayload = asArray<MatchData>(matchesResponse.data?.data ?? matchesResponse.data);
+
+      const selectedTournament = tournamentsPayload.find((entry) => entry.id === Number(tournamentId));
 
       setOrganization(orgPayload);
       setUser(mePayload);
       setTournament(selectedTournament ?? null);
-      setMatches(
-        (matchesPayload as MatchData[]).filter((match) => match.tournament_id === Number(tournamentId)),
-      );
+      setMatches(matchesPayload.filter((match) => match.tournament_id === Number(tournamentId)));
     } catch {
       messageApi.error("Não foi possível carregar os dados do torneio.");
       setTournament(null);
