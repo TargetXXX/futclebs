@@ -30,7 +30,8 @@ export const MatchFinishModal: React.FC<Props> = ({ isOpen, onClose, matchId, on
       if (!isOpen || !matchId) return;
 
       const { data } = await api.get(`/matches/${matchId}/players`);
-      const mapped = (data || []).map((item: any) => ({
+      const payload = data?.data ?? data ?? [];
+      const mapped = payload.map((item: any) => ({
         id: Number(item.id),
         name: item.name,
         team: Number(item?.pivot?.team ?? item.team ?? 1),

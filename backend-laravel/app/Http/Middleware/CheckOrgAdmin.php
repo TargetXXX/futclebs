@@ -27,8 +27,29 @@ class CheckOrgAdmin
 
         $organizationId = null;
 
-        if ($team = $request->route('team')) {
-            $organizationId = is_object($team) ? $team->organization_id : null;
+        if ($match = $request->route('match')) {
+            $organizationId = is_object($match) ? $match->organization_id : null;
+        }
+
+        if (!$organizationId && ($tournament = $request->route('tournament'))) {
+            $organizationId = is_object($tournament) ? $tournament->organization_id : null;
+        }
+
+        if (!$organizationId && ($team = $request->route('team'))) {
+            $organizationId = is_object($team) ? $team?->tournament?->organization_id : null;
+        }
+
+        if (!$organizationId && $request->filled('tournament_id')) {
+            $organizationId = (int) \App\Models\Tournament::query()
+                ->whereKey((int) $request->input('tournament_id'))
+                ->value('organization_id');
+        }
+
+        if (!$organizationId && $request->filled('team_id')) {
+            $organizationId = (int) \App\Models\Team::query()
+                ->whereKey((int) $request->input('team_id'))
+                ->join('tournaments', 'teams.tournament_id', '=', 'tournaments.id')
+                ->value('tournaments.organization_id');
         }
 
         if (!$organizationId) {

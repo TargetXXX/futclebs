@@ -550,28 +550,13 @@ export default function OrganizationDashboard() {
 
     setIsBusy(true);
     try {
-      const response = await api.post("/tournaments", {
+      await api.post("/tournaments", {
         organization_id: Number(orgId),
         name: newTournamentName.trim(),
         type: newTournamentType,
         start_date: newTournamentStartDate || null,
+        teams: validTeams,
       });
-
-      const payload = response.data?.data ?? response.data;
-      const tournamentId = payload?.id;
-
-      if (!tournamentId) {
-        throw new Error("Torneio sem ID retornado");
-      }
-
-      await Promise.all(
-        validTeams.map((teamName) =>
-          api.post("/teams", {
-            tournament_id: tournamentId,
-            name: teamName,
-          }),
-        ),
-      );
 
       setNewTournamentName("");
       setNewTournamentStartDate("");

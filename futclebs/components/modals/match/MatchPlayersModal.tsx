@@ -33,7 +33,8 @@ export const MatchPlayersModal: React.FC<MatchPlayersModalProps> = ({ isOpen, on
     setLoading(true);
     try {
       const { data } = await api.get(`/matches/${matchId}/players`);
-      const mapped = (data || []).map((item: any) => ({
+      const payload = data?.data ?? data ?? [];
+      const mapped = payload.map((item: any) => ({
         player_id: String(item.id),
         name: item.name,
         is_goalkeeper: Boolean(item.is_goalkeeper),
