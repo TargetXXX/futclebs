@@ -65,6 +65,7 @@ api.interceptors.response.use(
 
 export type Player = {
   id: string;
+  uuid: string;
   name: string;
   phone: string;
   is_admin: boolean;

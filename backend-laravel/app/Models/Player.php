@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PlayerPosition;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class Player extends Authenticatable
@@ -31,6 +32,15 @@ class Player extends Authenticatable
         'cpf',
         'username'
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Player $player) {
+            if (empty($player->uuid)) {
+                $player->uuid = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $hidden = [
         'password',

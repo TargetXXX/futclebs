@@ -614,22 +614,25 @@ export default function OrganizationDashboard() {
           </div>
 
           <Space wrap>
-            <Button className={primaryButtonClass} icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)} disabled={!isAdmin}>
-              Novo torneio
-            </Button>
-            <Button
-              className={primaryButtonClass}
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setNewMatchTournamentId("none");
-                setNewMatchName("Partida amistosa");
-                setIsCreateMatchOpen(true);
-              }}
-              disabled={!isAdmin}
-            >
-              Nova partida
-            </Button>
+            {isAdmin && (
+              <Button className={primaryButtonClass} icon={<PlusOutlined />} onClick={() => setIsCreateTournamentOpen(true)}>
+                Novo torneio
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                className={primaryButtonClass}
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => {
+                  setNewMatchTournamentId("none");
+                  setNewMatchName("Partida amistosa");
+                  setIsCreateMatchOpen(true);
+                }}
+              >
+                Nova partida
+              </Button>
+            )}
             <Button className={actionButtonClass} icon={<ReloadOutlined />} onClick={fetchDashboardData}>Atualizar</Button>
             <Button className={actionButtonClass} onClick={() => navigate("/dashboard")}>Voltar</Button>
           </Space>
@@ -733,20 +736,42 @@ export default function OrganizationDashboard() {
                 <Row gutter={[16, 16]} justify="center">
                   {group.players.length > 0 ? group.players.map((player, index) => (
                     <Col xs={24} md={8} key={`${group.title}-${player.id}`}>
-                      <button
-                        type="button"
+                      <Card
+                        hoverable
+                        className="!rounded-[26px] !border-[#c5aa5b] !bg-gradient-to-b !from-[#f7e7b0] !via-[#e8cf89] !to-[#c7a85a] !shadow-2xl !shadow-amber-900/35 transition-all duration-300 hover:!-translate-y-1"
+                        styles={{ body: { padding: 14 } }}
+                        style={{ clipPath: "polygon(0 0, 100% 0, 100% 93%, 50% 100%, 0 93%)" }}
                         onClick={() => setSelectedPlayer(player)}
-                        className="w-full rounded-2xl border border-slate-700/70 bg-slate-900/70 p-3 text-center transition hover:-translate-y-1 hover:border-cyan-300/50"
                       >
-                        <div className="mx-auto mb-2 flex h-20 w-20 items-center justify-center rounded-full border-4" style={{ borderColor: index === 0 ? "#facc15" : index === 1 ? "#cbd5e1" : "#d97706" }}>
-                          <Avatar src={player.avatar || undefined} size={68} className="!bg-slate-700 !text-white">{player.name?.[0]}</Avatar>
+                        <div className="rounded-2xl border border-amber-900/20 bg-gradient-to-b from-[#f9eec8]/90 to-[#d4b26a]/90 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-4xl font-black leading-none text-[#2d2110]">{player.pivot?.overall ?? 0}</div>
+                              <div className="text-xs font-bold uppercase tracking-wider text-[#4e3a1a]">{player.primary_position || "Linha"}</div>
+                            </div>
+                            <Tag color="gold" className="!mr-0 !border-amber-700 !text-[#3b2a11]">#{index + 1}</Tag>
+                          </div>
+
+                          <div className="mt-2 flex justify-center">
+                            <Avatar src={player.avatar || undefined} size={92} className="!border-4 !border-amber-100 !bg-slate-700 !text-white">
+                              {player.name?.[0]}
+                            </Avatar>
+                          </div>
+
+                          <div className="mt-2 border-y border-amber-900/25 py-1 text-center text-base font-extrabold uppercase tracking-wide text-[#2f220f]">
+                            {player.name}
+                          </div>
+
+                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-bold text-[#3e2e14]">
+                            <div className="flex justify-between"><span>PAC</span><span>{player.pivot?.velocidade ?? 0}</span></div>
+                            <div className="flex justify-between"><span>SHO</span><span>{player.pivot?.finalizacao ?? 0}</span></div>
+                            <div className="flex justify-between"><span>PAS</span><span>{player.pivot?.passe ?? 0}</span></div>
+                            <div className="flex justify-between"><span>DRI</span><span>{player.pivot?.drible ?? 0}</span></div>
+                            <div className="flex justify-between"><span>DEF</span><span>{player.pivot?.defesa ?? 0}</span></div>
+                            <div className="flex justify-between"><span>PHY</span><span>{player.pivot?.fisico ?? 0}</span></div>
+                          </div>
                         </div>
-                        <div className="mb-2 text-sm font-bold text-slate-100">{player.name}</div>
-                        <div className="mx-auto max-w-[180px] rounded-t-[34px] border border-slate-700/60 bg-gradient-to-b from-slate-200 to-slate-400 py-5 text-center text-slate-900" style={{ background: index === 0 ? "linear-gradient(180deg, #fde047 0%, #eab308 100%)" : index === 1 ? "linear-gradient(180deg, #e2e8f0 0%, #94a3b8 100%)" : "linear-gradient(180deg, #fb923c 0%, #c2410c 100%)" }}>
-                          <div className="text-5xl font-black leading-none">{player.pivot?.overall ?? 0}</div>
-                          <div className="text-xs font-bold uppercase tracking-[0.18em]">OVR</div>
-                        </div>
-                      </button>
+                      </Card>
                     </Col>
                   )) : <Text className="!text-slate-400">Sem jogadores nessa categoria.</Text>}
                 </Row>
@@ -835,9 +860,11 @@ export default function OrganizationDashboard() {
                         <Space wrap>
                           <Button className={actionButtonClass} onClick={() => navigate(`/dashboard/org/${orgId}/tournaments/${tournament.id}`)}>Ver página</Button>
                           <Button className={actionButtonClass} onClick={() => viewTournamentMatches(tournament.id)}>Ver partidas</Button>
-                          <Button className={primaryButtonClass} type="primary" icon={<PlusOutlined />} onClick={() => openCreateMatchForTournament(tournament.id)} disabled={!isAdmin || teamCount < 2}>
-                            Criar partida
-                          </Button>
+                          {isAdmin && (
+                            <Button className={primaryButtonClass} type="primary" icon={<PlusOutlined />} onClick={() => openCreateMatchForTournament(tournament.id)} disabled={teamCount < 2}>
+                              Criar partida
+                            </Button>
+                          )}
                         </Space>
                       </div>
 
