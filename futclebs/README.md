@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚽ FutClebs
+# ⚽ BOLANOPE
 
 **Classificação • Votação • Ranking • Comunidade**
 
@@ -8,7 +8,7 @@ Uma plataforma moderna para criar partidas, votar em resultados e acompanhar ran
 
 <br/>
 
-<img src="./assets/banner.png" alt="FutClebs Dashboard" width="100%" />
+<img src="./assets/banner.png" alt="BOLANOPE Dashboard" width="100%" />
 
 <br/>
 
@@ -22,7 +22,7 @@ Uma plataforma moderna para criar partidas, votar em resultados e acompanhar ran
 
 ## 🧠 Sobre o Projeto
 
-O **FutClebs** nasceu com a ideia de ser um **hub comunitário de partidas e rankings**, onde usuários podem:
+O **BOLANOPE** nasceu com a ideia de ser um **hub comunitário de partidas e rankings**, onde usuários podem:
 
 - Criar partidas ⚽  
 - Votar em resultados 📊  

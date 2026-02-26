@@ -46,7 +46,7 @@ export default function Login() {
         <div style={{ width: "100%", maxWidth: 620 }}>
           <Space direction="vertical" size={20} style={{ width: "100%" }}>
             <Space direction="vertical" size={4} style={{ textAlign: "center", width: "100%" }}>
-              <Text style={{ color: "#34d399", fontWeight: 600 }}>FutClebs • Acesso rápido</Text>
+              <Text style={{ color: "#34d399", fontWeight: 600 }}>BOLANOPE • Acesso rápido</Text>
               <Title level={4} style={{ color: "#f8fafc", margin: 0 }}>
                 Entre em segundos e acompanhe sua evolução
               </Title>

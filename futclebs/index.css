@@ -76,7 +76,18 @@ body {
 }
 
 .universal-navbar {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.55);
+  padding: 0 24px !important;
+  background: linear-gradient(120deg, rgba(2, 6, 23, 0.92), rgba(14, 23, 43, 0.82)) !important;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 38px rgba(2, 6, 23, 0.45);
 }
 
 .universal-navbar::before {
@@ -104,6 +115,27 @@ body {
   padding: 3px;
   background: linear-gradient(145deg, rgba(16, 185, 129, 0.85), rgba(14, 165, 233, 0.85));
   box-shadow: 0 10px 30px rgba(2, 132, 199, 0.35);
+}
+
+
+.universal-navbar__left {
+  min-width: 0;
+}
+
+.universal-navbar__quick-link {
+  border-radius: 999px !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+}
+
+.universal-navbar__quick-link.is-active {
+  border-color: rgba(52, 211, 153, 0.65) !important;
+  background: linear-gradient(120deg, rgba(6, 182, 212, 0.25), rgba(16, 185, 129, 0.25)) !important;
+}
+
+.universal-navbar__clock {
+  color: #93c5fd !important;
+  font-size: 12px;
 }
 
 .ant-modal-root .ant-modal-wrap {
@@ -179,4 +211,48 @@ body {
 .ant-modal .ant-select-selector,
 .ant-modal textarea.ant-input {
   border-radius: 10px !important;
+}
+
+@keyframes bolanopePlayerReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+    filter: saturate(0.7);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: saturate(1);
+  }
+}
+
+.bolanope-player-card {
+  animation: bolanopePlayerReveal 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  position: relative;
+  overflow: hidden;
+}
+
+.bolanope-player-card::after {
+  content: "";
+  position: absolute;
+  inset: -80% -30% auto;
+  height: 120%;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.28), transparent 70%);
+  transform: translateX(-120%) rotate(9deg);
+  animation: bolanopeCardShine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes bolanopeCardShine {
+  0%,
+  55% {
+    transform: translateX(-120%) rotate(9deg);
+  }
+  100% {
+    transform: translateX(120%) rotate(9deg);
+  }
 }

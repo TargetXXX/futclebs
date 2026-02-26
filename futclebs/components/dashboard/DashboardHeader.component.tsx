@@ -20,7 +20,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     <header className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-4 sm:p-6 backdrop-blur-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em]">FutClebs • Dashboard</p>
+          <p className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em]">BOLANOPE • Dashboard</p>
           <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{userProfile.name}</h1>
           {userProfile.is_admin && (
             <span className="mt-2 inline-flex text-[10px] font-black bg-white text-slate-950 px-2.5 py-1 rounded-full uppercase tracking-[0.14em] border border-white/20">
