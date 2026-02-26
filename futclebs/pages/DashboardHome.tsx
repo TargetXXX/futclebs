@@ -31,6 +31,7 @@ import {
   StarOutlined,
   TrophyOutlined,
   UnorderedListOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import JoinOrganizationModal from "@/components/modals/organization/JoinOrganizationModal";
 import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
@@ -46,6 +47,14 @@ interface Organization {
 type SortOption = "name-asc" | "name-desc" | "overall-desc" | "overall-asc";
 type ViewMode = "grid" | "list";
 
+interface AuthUser {
+  id: number;
+  uuid?: string;
+  name: string;
+  is_admin?: boolean;
+}
+
+
 const FAVORITES_STORAGE_KEY = "futclebs.favorite.orgs";
 const DASHBOARD_PREFS_STORAGE_KEY = "futclebs.dashboard.prefs";
 const { Title, Text } = Typography;
@@ -53,6 +62,7 @@ const { Content } = Layout;
 
 export default function DashboardHome() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [joinOpen, setJoinOpen] = useState(false);
 
@@ -98,11 +108,17 @@ export default function DashboardHome() {
   const fetchMyOrgs = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/me/organizations");
-      setOrganizations(data || []);
+      const [{ data: organizationsData }, { data: meData }] = await Promise.all([
+        api.get("/me/organizations"),
+        api.get("/auth/me"),
+      ]);
+
+      setOrganizations(organizationsData || []);
+      setCurrentUser(meData?.data ?? meData ?? null);
     } catch (err) {
       console.error(err);
       setOrganizations([]);
+      setCurrentUser(null);
     } finally {
       setLoading(false);
     }
@@ -247,6 +263,36 @@ export default function DashboardHome() {
             </Space>
           </Flex>
         </Card>
+
+        {currentUser?.is_admin && (
+          <Card
+            style={{
+              marginBottom: 18,
+              borderRadius: 20,
+              border: "1px solid rgba(250,204,21,0.35)",
+              background: "linear-gradient(135deg, rgba(56,44,7,0.8), rgba(15,23,42,0.85))",
+            }}
+          >
+            <Flex justify="space-between" align="center" wrap="wrap" gap={12}>
+              <Space direction="vertical" size={2}>
+                <Text style={{ color: "#fcd34d", fontWeight: 700 }}>
+                  <SafetyCertificateOutlined /> Painel Superadmin
+                </Text>
+                <Title level={4} style={{ margin: 0, color: "#fef3c7" }}>
+                  Bem-vindo, {currentUser.name}
+                </Title>
+                <Text style={{ color: "#fde68a" }}>
+                  Você possui permissões globais do sistema e pode acessar qualquer organização.
+                </Text>
+                <Text style={{ color: "#fef08a", fontSize: 12 }}>UUID: {currentUser.uuid ?? "não disponível"}</Text>
+              </Space>
+              <Space>
+                <Tag color="gold">SUPERADMIN</Tag>
+                <Button type="primary" onClick={() => navigate("/dashboard")}>Visão geral</Button>
+              </Space>
+            </Flex>
+          </Card>
+        )}
 
         <Row gutter={[16, 16]} style={{ marginBottom: 18 }}>
           <Col xs={24} md={12} lg={6}><Card><Statistic title="Organizações" value={dashboardStats.total} /></Card></Col>

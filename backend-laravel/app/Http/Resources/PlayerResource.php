@@ -11,6 +11,7 @@ class PlayerResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'uuid' => $this->uuid,
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
@@ -22,6 +23,7 @@ class PlayerResource extends JsonResource
             'birthdate' => $this->birthdate,
             'gender' => $this->gender,
             'is_verified' => $this->is_verified,
+            'is_admin' => $this->is_admin,
             'created_at' => $this->created_at,
             'cpf' => $this->cpf,
             'username' => $this->username,
