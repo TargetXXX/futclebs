@@ -19,8 +19,9 @@ class AuthController extends Controller
         $data = $this->authService->register($request->validated());
 
         return response()->json([
+            'success' => true,
             'message' => 'Player registrado com sucesso',
-            ...$data
+            'data' => $data,
         ], 201);
     }
 
@@ -29,14 +30,19 @@ class AuthController extends Controller
         $data = $this->authService->login($request->validated());
 
         return response()->json([
+            'success' => true,
             'message' => 'Login realizado com sucesso',
-            ...$data
+            'data' => $data,
         ]);
     }
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        return response()->json([
+            'success' => true,
+            'message' => 'Perfil carregado com sucesso',
+            'data' => $request->user(),
+        ]);
     }
 
     public function logout(Request $request)
@@ -44,6 +50,7 @@ class AuthController extends Controller
         $this->authService->logout($request->user());
 
         return response()->json([
+            'success' => true,
             'message' => 'Logout realizado com sucesso'
         ]);
     }
