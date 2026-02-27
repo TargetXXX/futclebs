@@ -38,6 +38,7 @@ class PlayerOrgResource extends JsonResource
             ] : null,
 
             'organizations' => OrganizationResource::collection($this->whenLoaded('organizations')),
+            'season_overall_history' => $this->season_overall_history ?? [],
             'stats' => new PlayerStatResource($this->whenLoaded('stats')),
         ];
     }

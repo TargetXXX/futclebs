@@ -10,10 +10,17 @@ class Organization extends Model
         'name',
         'password',
         'description',
-        'active'
+        'active',
+        'seasons_enabled',
+        'season_duration_days',
     ];
 
     protected $hidden = ['password'];
+
+    protected $casts = [
+        'active' => 'boolean',
+        'seasons_enabled' => 'boolean',
+    ];
 
     public function setPasswordAttribute($value)
     {
@@ -45,5 +52,10 @@ class Organization extends Model
     public function matches()
     {
         return $this->hasMany(MatchModel::class);
+    }
+
+    public function seasons()
+    {
+        return $this->hasMany(OrganizationSeason::class);
     }
 }

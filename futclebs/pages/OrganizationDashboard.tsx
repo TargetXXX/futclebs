@@ -14,12 +14,15 @@ import {
   List,
   message,
   Modal,
+  Popconfirm,
   Progress,
   Row,
   Segmented,
   Select,
   Space,
   Spin,
+  Switch,
+  InputNumber,
   Statistic,
   Tag,
   Typography,
@@ -82,6 +85,18 @@ interface TournamentData {
   matches?: MatchData[];
 }
 
+
+interface SeasonHistoryEntry {
+  season_id?: number | null;
+  season_name: string;
+  season_reference: string;
+  overall: number;
+  recorded_at?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  is_active?: boolean;
+}
+
 interface OrganizationPlayer {
   id: number;
   name: string;
@@ -95,6 +110,7 @@ interface OrganizationPlayer {
   status?: string | null;
   goals_total?: number;
   assists_total?: number;
+  season_overall_history?: SeasonHistoryEntry[];
   pivot?: {
     is_admin?: boolean;
     overall?: number;
@@ -108,10 +124,21 @@ interface OrganizationPlayer {
   };
 }
 
+interface OrganizationSeason {
+  id: number;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+}
+
 interface OrganizationData {
   id: number;
   name: string;
   description?: string;
+  seasons_enabled?: boolean;
+  season_duration_days?: number | null;
+  seasons?: OrganizationSeason[];
   players?: OrganizationPlayer[];
 }
 
@@ -139,6 +166,8 @@ export default function OrganizationDashboard() {
   const [isCreateMatchOpen, setIsCreateMatchOpen] = useState(false);
   const [isCreateTournamentOpen, setIsCreateTournamentOpen] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
+  const [seasonsEnabled, setSeasonsEnabled] = useState(false);
+  const [seasonDurationDays, setSeasonDurationDays] = useState<number | null>(30);
 
   const [newMatchDate, setNewMatchDate] = useState("");
   const [newMatchName, setNewMatchName] = useState("Partida amistosa");
@@ -216,6 +245,8 @@ export default function OrganizationDashboard() {
       }));
 
       setOrganization(orgPayload);
+      setSeasonsEnabled(Boolean(orgPayload?.seasons_enabled));
+      setSeasonDurationDays(orgPayload?.season_duration_days ?? 30);
       setUser(mePayload);
       setTournaments(tournamentsPayload as TournamentData[]);
       setMatches(normalizedMatches);
@@ -258,6 +289,36 @@ export default function OrganizationDashboard() {
 
   const userOverall = userOnOrg?.pivot?.overall ?? 0;
   const isAdmin = Boolean(userOnOrg?.pivot?.is_admin);
+
+  const saveSeasonSettings = async () => {
+    if (!orgId || !isAdmin) return;
+
+    if (seasonsEnabled && (!seasonDurationDays || seasonDurationDays < 7)) {
+      messageApi.error("Defina uma duração de temporada entre 7 e 365 dias.");
+      return;
+    }
+
+    setIsBusy(true);
+    try {
+      await api.put(`/organizations/${orgId}/season-settings`, {
+        seasons_enabled: seasonsEnabled,
+        season_duration_days: seasonsEnabled ? seasonDurationDays : null,
+      });
+
+      messageApi.success("Configurações de temporada atualizadas.");
+      await fetchDashboardData();
+    } catch (error: any) {
+      messageApi.error(error?.response?.data?.message || "Não foi possível atualizar as temporadas.");
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const currentSeason = useMemo(
+    () => (organization?.seasons ?? []).find((season) => season.is_active),
+    [organization?.seasons],
+  );
+
   const actionButtonClass =
     "!h-10 !rounded-xl !border-slate-500/40 !bg-slate-900/70 !px-4 !font-semibold !text-slate-100 hover:!border-cyan-300/60 hover:!text-cyan-200 hover:!shadow-[0_0_20px_rgba(34,211,238,0.18)]";
   const primaryButtonClass =
@@ -981,6 +1042,42 @@ export default function OrganizationDashboard() {
               </div>
             </Card>
 
+            {isAdmin && (
+              <Card className="!bg-slate-900/80 !border-slate-700 !rounded-2xl !shadow-xl !shadow-black/20" title={<span className="text-white">Configuração de temporadas</span>}>
+                <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                  <div className="flex items-center justify-between">
+                    <Text className="!text-slate-200">Ativar temporadas na organização</Text>
+                    <Switch checked={seasonsEnabled} onChange={setSeasonsEnabled} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Text className="!text-slate-300">Duração (dias)</Text>
+                    <InputNumber min={7} max={365} disabled={!seasonsEnabled} value={seasonDurationDays ?? undefined} onChange={(v) => setSeasonDurationDays(typeof v === "number" ? v : null)} />
+                  </div>
+                  <Space wrap>
+                    <Tag color={seasonsEnabled ? "blue" : "default"}>{seasonsEnabled ? "Temporadas ativas" : "Temporadas desativadas"}</Tag>
+                    {currentSeason ? <Tag color="green">Atual: {currentSeason.name}</Tag> : <Tag>Nenhuma temporada em andamento</Tag>}
+                  </Space>
+                  {currentSeason && (
+                    <Text className="!text-slate-400">Período: {formatDateTimeLabel(currentSeason.starts_at)} até {formatDateTimeLabel(currentSeason.ends_at)}</Text>
+                  )}
+                  {!!organization?.seasons?.length && (
+                    <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-3">
+                      <Text className="!text-slate-300">Temporadas recentes</Text>
+                      <div className="mt-2 space-y-2">
+                        {(organization?.seasons ?? []).slice(0, 4).map((season) => (
+                          <div key={season.id} className="flex items-center justify-between rounded-lg border border-slate-700 px-2 py-1">
+                            <Text className="!text-slate-200">{season.name}</Text>
+                            <Tag color={season.is_active ? "green" : "default"}>{season.is_active ? "ATIVA" : "ENCERRADA"}</Tag>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <Button type="primary" className={primaryButtonClass} onClick={saveSeasonSettings} loading={isBusy}>Salvar configurações</Button>
+                </Space>
+              </Card>
+            )}
+
             <Row gutter={[16, 16]}>
               <Col xs={24} md={8}><Card className="!rounded-2xl"><Statistic title="Torneios ativos" value={tournaments.length} prefix={<TrophyOutlined />} /></Card></Col>
               <Col xs={24} md={8}><Card className="!rounded-2xl"><Statistic title="Partidas em torneios" value={matches.filter((m) => m.tournament_id).length} prefix={<FireOutlined />} /></Card></Col>
@@ -1083,6 +1180,22 @@ export default function OrganizationDashboard() {
             <div className="mt-3 grid grid-cols-2 gap-2 text-center text-xs font-bold uppercase">
               <div className="rounded-lg border border-amber-900/20 bg-amber-50/40 p-2">⚽ Gols: {selectedPlayer.goals_total ?? 0}</div>
               <div className="rounded-lg border border-amber-900/20 bg-amber-50/40 p-2">🎯 Assist: {selectedPlayer.assists_total ?? 0}</div>
+            </div>
+
+            <div className="mt-3 rounded-lg border border-amber-900/20 bg-amber-50/40 p-2 text-xs">
+              <div className="mb-2 font-black uppercase tracking-wide">Histórico de overall por temporada</div>
+              {(selectedPlayer.season_overall_history ?? []).length === 0 ? (
+                <div>Nenhum histórico encontrado.</div>
+              ) : (
+                <div className="space-y-1">
+                  {(selectedPlayer.season_overall_history ?? []).map((entry) => (
+                    <div key={entry.season_reference} className="flex items-center justify-between rounded border border-amber-900/20 bg-amber-100/30 px-2 py-1">
+                      <span>{entry.season_name}</span>
+                      <span className="font-black">OVR {entry.overall} {entry.recorded_at ? `• ${new Date(entry.recorded_at).toLocaleDateString("pt-BR")}` : ""}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

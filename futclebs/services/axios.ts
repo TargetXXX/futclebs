@@ -82,7 +82,9 @@ export type Organization = {
     id: number;
     name: string;
     description: string;
-    actice: boolean;
+    active: boolean;
+    seasons_enabled?: boolean;
+    season_duration_days?: number | null;
     created_at: string;
 }
 
