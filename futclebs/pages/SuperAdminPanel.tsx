@@ -14,6 +14,7 @@ import {
   Row,
   Space,
   Statistic,
+  Switch,
   Tabs,
   Tag,
   Typography,
@@ -50,6 +51,7 @@ interface PlayerLookupResult {
   name: string;
   phone?: string;
   email?: string;
+  is_admin?: boolean;
 }
 
 export default function SuperAdminPanel() {
@@ -66,6 +68,9 @@ export default function SuperAdminPanel() {
   const [lookingUpPlayer, setLookingUpPlayer] = useState(false);
   const [lookupPhone, setLookupPhone] = useState("");
   const [selectedAdmin, setSelectedAdmin] = useState<PlayerLookupResult | null>(null);
+  const [permissionPhone, setPermissionPhone] = useState("");
+  const [selectedPlayerPermission, setSelectedPlayerPermission] = useState<PlayerLookupResult | null>(null);
+  const [updatingPermission, setUpdatingPermission] = useState(false);
 
   const onCreateOrganization = async (values: CreateOrgForm) => {
     setCreatingOrg(true);
@@ -113,6 +118,7 @@ export default function SuperAdminPanel() {
         name: payload.name,
         email: payload.email,
         phone: payload.phone,
+        is_admin: payload.is_admin,
       };
 
       setSelectedAdmin(result);
@@ -122,6 +128,59 @@ export default function SuperAdminPanel() {
       messageApi.error("Falha ao buscar jogador por telefone.");
     } finally {
       setLookingUpPlayer(false);
+    }
+  };
+
+  const searchPlayerPermissionByPhone = async () => {
+    if (!permissionPhone.trim()) {
+      messageApi.warning("Informe um telefone para buscar o jogador.");
+      return;
+    }
+
+    setLookingUpPlayer(true);
+    try {
+      const { data } = await api.get(`/players/${permissionPhone.trim()}`);
+      const payload = data?.data ?? data;
+
+      if (!payload?.id) {
+        messageApi.error("Jogador não encontrado.");
+        return;
+      }
+
+      const result: PlayerLookupResult = {
+        id: Number(payload.id),
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        is_admin: Boolean(payload.is_admin),
+      };
+
+      setSelectedPlayerPermission(result);
+      messageApi.success(`Jogador carregado: ${result.name} (#${result.id})`);
+    } catch {
+      messageApi.error("Falha ao buscar jogador por telefone.");
+    } finally {
+      setLookingUpPlayer(false);
+    }
+  };
+
+  const onUpdateGlobalPermission = async () => {
+    if (!selectedPlayerPermission) {
+      messageApi.warning("Busque um jogador antes de atualizar a permissão.");
+      return;
+    }
+
+    setUpdatingPermission(true);
+    try {
+      await api.put(`/players/${selectedPlayerPermission.id}`, {
+        is_admin: Boolean(selectedPlayerPermission.is_admin),
+      });
+
+      messageApi.success("Permissão global atualizada com sucesso.");
+    } catch {
+      messageApi.error("Não foi possível atualizar a permissão global do jogador.");
+    } finally {
+      setUpdatingPermission(false);
     }
   };
 
@@ -253,6 +312,70 @@ export default function SuperAdminPanel() {
                       Criar organização
                     </Button>
                   </Form>
+                </Card>
+              ),
+            },
+            {
+              key: "permissions",
+              label: (
+                <Space>
+                  <SafetyCertificateOutlined />
+                  Permissões globais
+                </Space>
+              ),
+              children: (
+                <Card style={{ borderRadius: 16 }}>
+                  <Title level={4}>Transformar usuário em superadmin global</Title>
+                  <Text type="secondary">Ative ou desative o perfil de administrador global do sistema por telefone.</Text>
+
+                  <Divider />
+
+                  <Space direction="vertical" style={{ width: "100%" }} size={8}>
+                    <Text strong>Buscar jogador por telefone</Text>
+                    <Space.Compact style={{ width: "100%" }}>
+                      <Input
+                        value={permissionPhone}
+                        onChange={(event) => setPermissionPhone(event.target.value)}
+                        placeholder="Ex: 11999998888"
+                      />
+                      <Button icon={<SearchOutlined />} loading={lookingUpPlayer} onClick={searchPlayerPermissionByPhone}>
+                        Buscar
+                      </Button>
+                    </Space.Compact>
+
+                    {selectedPlayerPermission && (
+                      <Card size="small" style={{ borderRadius: 12, background: "#f8fafc" }}>
+                        <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                          <div>
+                            <Text strong>{selectedPlayerPermission.name}</Text>
+                            <br />
+                            <Text type="secondary">ID: {selectedPlayerPermission.id}</Text>
+                            <br />
+                            <Text type="secondary">Telefone: {selectedPlayerPermission.phone || "-"}</Text>
+                          </div>
+
+                          <Space align="center">
+                            <Text>Superadmin global</Text>
+                            <Switch
+                              checked={Boolean(selectedPlayerPermission.is_admin)}
+                              onChange={(checked) =>
+                                setSelectedPlayerPermission((prev) => (prev ? { ...prev, is_admin: checked } : prev))
+                              }
+                            />
+                          </Space>
+
+                          <Button
+                            type="primary"
+                            icon={<SafetyCertificateOutlined />}
+                            loading={updatingPermission}
+                            onClick={onUpdateGlobalPermission}
+                          >
+                            Salvar permissão
+                          </Button>
+                        </Space>
+                      </Card>
+                    )}
+                  </Space>
                 </Card>
               ),
             },

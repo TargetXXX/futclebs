@@ -6,6 +6,7 @@ use App\Http\Requests\Player\UpdatePlayerRequest;
 use App\Http\Resources\PlayerResource;
 use App\Models\Player;
 use App\Services\PlayerService;
+use App\Support\SuperAdmin;
 
 class PlayerController extends Controller
 {
@@ -27,9 +28,15 @@ class PlayerController extends Controller
     {
         $this->authorize('update', $player);
 
+        $data = $request->validated();
+
+        if (array_key_exists('is_admin', $data) && !SuperAdmin::check($request->user())) {
+            abort(403, 'Somente superadmins podem alterar privilégios globais.');
+        }
+
         $player = $this->playerService->update(
             $player,
-            $request->validated()
+            $data
         );
 
         return new PlayerResource($player);

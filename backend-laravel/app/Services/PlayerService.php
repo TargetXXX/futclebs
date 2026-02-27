@@ -14,9 +14,11 @@ class PlayerService
 
         if (isset($data['password'])) {
 
-            $isAdmin = auth()->user()->is_admin ?? false;
+            $authUser = auth()->user();
+            $isAdmin = $authUser?->is_admin ?? false;
+            $isSuperAdmin = $authUser ? \App\Support\SuperAdmin::check($authUser) : false;
 
-            if (!$isAdmin) {
+            if (!$isAdmin && !$isSuperAdmin) {
                 if (!isset($data['current_password'])) {
                     throw ValidationException::withMessages([
                         'current_password' => ['Senha atual é obrigatória.'],
