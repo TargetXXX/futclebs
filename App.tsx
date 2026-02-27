@@ -147,8 +147,8 @@ const App: React.FC = () => {
 
   // Dashboard principal
   return (
-    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.12),transparent_35%)] pb-20 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.14),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(6,182,212,0.08),transparent_40%)] pb-20 p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto space-y-8">
         {/* Header */}
         <DashboardHeader
           userProfile={userProfile}

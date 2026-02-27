@@ -1,20 +1,10 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { httpClient } from './httpClient';
 
 type AuthUserResponse = {
   id?: string;
   user?: { id?: string };
   data?: { id?: string; user?: { id?: string }; exists?: boolean };
   exists?: boolean;
-  message?: string;
-};
-
-const parseErrorMessage = async (response: Response) => {
-  try {
-    const json = (await response.json()) as AuthUserResponse;
-    return json.message || 'Erro de comunicação com a API';
-  } catch {
-    return 'Erro de comunicação com a API';
-  }
 };
 
 const extractUserId = (payload: AuthUserResponse) => {
@@ -29,36 +19,19 @@ const extractExists = (payload: AuthUserResponse) => {
 
 export const authApi = {
   async checkPhoneExists(phone: string) {
-    const query = new URLSearchParams({ phone });
-    const response = await fetch(`${API_BASE_URL}/auth/check-phone?${query.toString()}`, {
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
+    const payload = await httpClient.request<AuthUserResponse>('/auth/check-phone', {
+      query: { phone },
     });
 
-    if (!response.ok) {
-      throw new Error(await parseErrorMessage(response));
-    }
-
-    const payload = (await response.json()) as AuthUserResponse;
     return extractExists(payload);
   },
 
   async login(phone: string, password: string) {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const payload = await httpClient.request<AuthUserResponse>('/auth/login', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ phone, password }),
+      body: { phone, password },
     });
 
-    if (!response.ok) {
-      throw new Error(await parseErrorMessage(response));
-    }
-
-    const payload = (await response.json()) as AuthUserResponse;
     return extractUserId(payload);
   },
 
@@ -73,26 +46,16 @@ export const authApi = {
     name: string;
     isGoalkeeper: boolean;
   }) {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const payload = await httpClient.request<AuthUserResponse>('/auth/register', {
       method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
+      body: {
         phone,
         password,
         name,
         is_goalkeeper: isGoalkeeper,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      throw new Error(await parseErrorMessage(response));
-    }
-
-    const payload = (await response.json()) as AuthUserResponse;
     return extractUserId(payload);
   },
 };
