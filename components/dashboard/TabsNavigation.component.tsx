@@ -13,7 +13,7 @@ export const TabsNavigation: React.FC<TabsNavigationProps> = ({
   getCategoryCount
 }) => {
   return (
-    <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 gap-1 overflow-x-auto no-scrollbar">
+    <div className="grid grid-cols-4 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 gap-1">
       <TabButton
         active={activeCategory === 'open'}
         onClick={() => onCategoryChange('open')}
@@ -52,7 +52,7 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, label, count, highlight }) => (
   <button
     onClick={onClick}
-    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 min-w-fit ${
+    className={`w-full py-2.5 px-1 rounded-xl text-[10px] font-black uppercase tracking-wide transition-all flex flex-col items-center justify-center gap-0.5 ${
       active
         ? highlight
           ? 'bg-orange-600 text-slate-950 shadow-lg shadow-orange-600/20'
@@ -63,7 +63,7 @@ const TabButton: React.FC<{
     {label}
     {count > 0 && (
       <span
-        className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none ${
+        className={`px-1.5 py-0.5 rounded-full text-[9px] leading-none font-black ${
           active
             ? 'bg-slate-950/20 text-slate-950'
             : highlight
@@ -76,4 +76,3 @@ const TabButton: React.FC<{
     )}
   </button>
 );
-
