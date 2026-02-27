@@ -155,6 +155,7 @@ const App: React.FC = () => {
           isSuperAdmin={isSuperAdmin}
           onOpenUserManagement={() => modals.openModal('isAdminUserManagementOpen')}
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
+          onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
           onLogout={handleLogout}
         />
 
@@ -178,6 +179,8 @@ const App: React.FC = () => {
         <div className="space-y-4">
           {ui.activeCategory === 'ranking' ? (
             <RankingTab
+              userPositions={userProfile.positions}
+              isGoalkeeper={userProfile.is_goalkeeper}
               onPlayerClick={(p) => {
                 modals.setSelectedPlayerData({
                   name: p.name,

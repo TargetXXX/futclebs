@@ -16,6 +16,7 @@ interface ModalState {
   isMiniStatsOpen: boolean;
   isAvatarModalOpen: boolean;
   isPositionSelectorOpen: boolean;
+  isSeasonModalOpen: boolean;
 }
 
 export const useModals = () => {
@@ -34,6 +35,7 @@ export const useModals = () => {
     isAdminUserManagementOpen: false,
     isMiniStatsOpen: false,
     isAvatarModalOpen: false,
+    isSeasonModalOpen: false,
     isPositionSelectorOpen: false,
   });
 

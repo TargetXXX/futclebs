@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { supabase, PlayerStats, PlayerPosition } from '../../services/supabase.ts';
+import { supabase, PlayerStats } from '../../services/supabase.ts';
 import { FullRankingModal } from '../modals/player/FullRankingModal.tsx';
 import { calculateByPosition } from '@/utils/overall.utils.ts';
 
@@ -13,20 +13,87 @@ interface RankingPlayer {
   positions?: String[] | null;
 }
 
-interface RankingTabProps {
-  onPlayerClick: (player: RankingPlayer) => void;
+interface Season {
+  id: string;
+  name: string;
+  started_at: string;
+  ended_at: string | null;
+  match_count?: number;
 }
 
-export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
+interface RankingTabProps {
+  onPlayerClick: (player: RankingPlayer) => void;
+  userPositions?: String[] | null;
+  isGoalkeeper?: boolean;
+}
+
+type PositionFilter = 'geral' | 'Ataque' | 'Meio' | 'Defesa' | 'Goleiro';
+
+const POSITION_CONFIG: Record<PositionFilter, { label: string; emoji: string; color: string; accent: string }> = {
+  geral:   { label: 'Geral',   emoji: '⚽', color: 'emerald', accent: 'text-emerald-500' },
+  Ataque:  { label: 'Ataque',  emoji: '🔥', color: 'red',     accent: 'text-red-400' },
+  Meio:    { label: 'Meio',    emoji: '🎯', color: 'blue',    accent: 'text-blue-400' },
+  Defesa:  { label: 'Defesa',  emoji: '🛡️', color: 'violet',  accent: 'text-violet-400' },
+  Goleiro: { label: 'Goleiro', emoji: '🧤', color: 'orange',  accent: 'text-orange-400' },
+};
+
+export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPositions, isGoalkeeper }) => {
   const [loading, setLoading] = useState(true);
   const [allPlayers, setAllPlayers] = useState<RankingPlayer[]>([]);
   const [fieldRanking, setFieldRanking] = useState<RankingPlayer[]>([]);
   const [gkRanking, setGkRanking] = useState<RankingPlayer[]>([]);
   const [isFullRankingOpen, setIsFullRankingOpen] = useState(false);
+  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
+
+  const getDefaultFilter = (): PositionFilter => {
+    if (isGoalkeeper) return 'Goleiro';
+    if (userPositions?.includes('Ataque')) return 'Ataque';
+    if (userPositions?.includes('Meio')) return 'Meio';
+    if (userPositions?.includes('Defesa')) return 'Defesa';
+    return 'geral';
+  };
+
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>(getDefaultFilter);
 
   useEffect(() => {
     fetchRankings();
+    fetchActiveSeason();
   }, []);
+
+  const fetchActiveSeason = async () => {
+    try {
+      const { data } = await supabase
+        .from('seasons')
+        .select('*')
+        .order('started_at', { ascending: false });
+
+      if (!data || data.length === 0) return;
+
+      const now = new Date();
+      const active = data.find((s: any) => !s.ended_at || new Date(s.ended_at) > now);
+      if (!active) return;
+
+      // Contar partidas finalizadas no período
+      const { data: matches } = await supabase
+        .from('matches')
+        .select('id, match_date')
+        .eq('status', 'finished');
+
+      let count = 0;
+      if (matches) {
+        const start = new Date(active.started_at);
+        const end = active.ended_at ? new Date(active.ended_at) : new Date('2099-01-01');
+        count = matches.filter((m: any) => {
+          const d = new Date(m.match_date);
+          return d >= start && d <= end;
+        }).length;
+      }
+
+      setActiveSeason({ ...active, match_count: count });
+    } catch (err) {
+      console.error('Erro ao buscar temporada:', err);
+    }
+  };
 
   const fetchRankings = async () => {
     setLoading(true);
@@ -87,9 +154,36 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
   }
 
   return (
-    <div className="space-y-16 animate-in fade-in duration-700 pb-20">
-      <div className="flex justify-center px-4">
-        <button 
+    <div className="space-y-10 animate-in fade-in duration-700 pb-20">
+
+      {/* Banner da Temporada Ativa */}
+      {activeSeason && <SeasonBanner season={activeSeason} />}
+
+      {/* Seletor de posição */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {(Object.keys(POSITION_CONFIG) as PositionFilter[]).map(pos => {
+          const cfg = POSITION_CONFIG[pos];
+          const active = positionFilter === pos;
+          return (
+            <button
+              key={pos}
+              onClick={() => setPositionFilter(pos)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-black text-[11px] uppercase tracking-wider whitespace-nowrap transition-all shrink-0 border ${
+                active
+                  ? `bg-${cfg.color}-500/20 border-${cfg.color}-500/40 ${cfg.accent}`
+                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
+              }`}
+            >
+              <span>{cfg.emoji}</span>
+              {cfg.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Ver ranking completo */}
+      <div className="flex justify-center">
+        <button
           onClick={() => setIsFullRankingOpen(true)}
           className="group relative px-8 py-4 bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden hover:border-emerald-500/50 transition-all active:scale-95"
         >
@@ -99,41 +193,59 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
             </svg>
             <span className="text-xs font-black text-white uppercase tracking-widest">Ver Ranking Completo</span>
           </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-emerald-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/5 to-emerald-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
         </button>
       </div>
 
-      {/* Categoria: Jogadores de Linha */}
-      <section>
-        <div className="text-center mb-24">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Elite de Linha</h2>
-          <p className="text-emerald-500 text-[9px] font-black uppercase tracking-[0.3em] mt-2">O Top 3 Atual</p>
-        </div>
-        
-        {fieldRanking.length > 0 ? (
-          <Podium players={fieldRanking} onPlayerClick={onPlayerClick} />
-        ) : (
-          <EmptyState />
-        )}
-      </section>
+      {/* Rankings por posição */}
+      {positionFilter === 'geral' ? (
+        <>
+          <RankingSection
+            title="Elite de Linha"
+            subtitle="O Top 3 Atual"
+            accentClass="text-emerald-500"
+            players={fieldRanking}
+            onPlayerClick={onPlayerClick}
+            variant="emerald"
+          />
+          <RankingSection
+            title="Muralhas"
+            subtitle="Os Guardiões Imbatíveis"
+            accentClass="text-orange-500"
+            players={gkRanking}
+            onPlayerClick={onPlayerClick}
+            variant="orange"
+          />
+        </>
+      ) : positionFilter === 'Goleiro' ? (
+        <RankingSection
+          title="Muralhas"
+          subtitle="Top Goleiros"
+          accentClass="text-orange-400"
+          players={[...allPlayers]
+            .filter(p => p.is_goalkeeper)
+            .sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0))
+            .slice(0, 3)}
+          onPlayerClick={onPlayerClick}
+          variant="orange"
+        />
+      ) : (
+        <RankingSection
+          title={`Top ${POSITION_CONFIG[positionFilter].label}`}
+          subtitle={`Melhores ${POSITION_CONFIG[positionFilter].label}s`}
+          accentClass={POSITION_CONFIG[positionFilter].accent}
+          players={[...allPlayers]
+            .filter(p => !p.is_goalkeeper && p.positions?.includes(positionFilter))
+            .sort((a, b) => (b.stats?.overall || 0) - (a.stats?.overall || 0))
+            .slice(0, 3)}
+          onPlayerClick={onPlayerClick}
+          variant={positionFilter === 'Ataque' ? 'red' : positionFilter === 'Meio' ? 'blue' : 'violet'}
+        />
+      )}
 
-      {/* Categoria: Goleiros */}
-      <section>
-        <div className="text-center mb-24">
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Muralhas</h2>
-          <p className="text-orange-500 text-[9px] font-black uppercase tracking-[0.3em] mt-2">Os Guardiões Imbatíveis</p>
-        </div>
-        
-        {gkRanking.length > 0 ? (
-          <Podium players={gkRanking} onPlayerClick={onPlayerClick} variant="orange" />
-        ) : (
-          <EmptyState />
-        )}
-      </section>
-
-      <FullRankingModal 
-        isOpen={isFullRankingOpen} 
-        onClose={() => setIsFullRankingOpen(false)} 
+      <FullRankingModal
+        isOpen={isFullRankingOpen}
+        onClose={() => setIsFullRankingOpen(false)}
         players={allPlayers}
         onPlayerClick={(p) => {
           setIsFullRankingOpen(false);
@@ -144,7 +256,113 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick }) => {
   );
 };
 
-const Podium: React.FC<{ players: RankingPlayer[], onPlayerClick: (p: RankingPlayer) => void, variant?: 'emerald' | 'orange' }> = ({ players, onPlayerClick, variant = 'emerald' }) => {
+type PodiumVariant = 'emerald' | 'orange' | 'red' | 'blue' | 'violet';
+
+const RankingSection: React.FC<{
+  title: string;
+  subtitle: string;
+  accentClass: string;
+  players: RankingPlayer[];
+  onPlayerClick: (p: RankingPlayer) => void;
+  variant: PodiumVariant;
+}> = ({ title, subtitle, accentClass, players, onPlayerClick, variant }) => (
+  <section>
+    <div className="text-center mb-24">
+      <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{title}</h2>
+      <p className={`text-[9px] font-black uppercase tracking-[0.3em] mt-2 ${accentClass}`}>{subtitle}</p>
+    </div>
+    {players.length > 0 ? (
+      <Podium players={players} onPlayerClick={onPlayerClick} variant={variant} />
+    ) : (
+      <EmptyState />
+    )}
+  </section>
+);
+
+const SeasonBanner: React.FC<{ season: Season }> = ({ season }) => {  const formatDate = (iso: string) =>
+    new Date(iso + (iso.length === 10 ? 'T12:00:00' : '')).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const now = new Date();
+  const end = season.ended_at ? new Date(season.ended_at) : null;
+  const totalMs = end ? end.getTime() - new Date(season.started_at).getTime() : null;
+  const elapsedMs = now.getTime() - new Date(season.started_at).getTime();
+  const progress = totalMs ? Math.min(100, Math.round((elapsedMs / totalMs) * 100)) : null;
+
+  const daysLeft = end ? Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : null;
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-yellow-500/10 via-slate-900 to-slate-900 border border-yellow-500/20 p-5">
+      {/* Glow decorativo */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="relative z-10 flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-yellow-500/15 border border-yellow-500/30 flex items-center justify-center shrink-0">
+            <span className="text-lg">🏆</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-yellow-500/70 mb-0.5">Temporada Ativa</p>
+            <p className="text-white font-black text-sm leading-tight">{season.name}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+          <span className="text-yellow-400 text-[10px] font-black uppercase tracking-wider">Ao vivo</span>
+        </div>
+      </div>
+
+      <div className="relative z-10 mt-4 flex flex-wrap gap-3">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/40">
+          <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span className="text-slate-300 text-[10px] font-bold">
+            {formatDate(season.started_at)}{end ? ` → ${formatDate(season.ended_at!)}` : ''}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/60 border border-slate-700/40">
+          <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span className="text-slate-300 text-[10px] font-bold">{season.match_count ?? 0} partida(s)</span>
+        </div>
+
+        {daysLeft !== null && (
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-bold ${
+            daysLeft <= 7
+              ? 'bg-red-500/10 border-red-500/30 text-red-400'
+              : 'bg-slate-800/60 border-slate-700/40 text-slate-300'
+          }`}>
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {daysLeft === 0 ? 'Encerra hoje!' : `${daysLeft} dia(s) restante(s)`}
+          </div>
+        )}
+      </div>
+
+      {progress !== null && (
+        <div className="relative z-10 mt-3 space-y-1">
+          <div className="flex justify-between text-[10px] font-bold text-slate-500">
+            <span>Progresso</span>
+            <span className="text-yellow-500">{progress}%</span>
+          </div>
+          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-yellow-500 to-yellow-400 rounded-full transition-all duration-700"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+const Podium: React.FC<{ players: RankingPlayer[], onPlayerClick: (p: RankingPlayer) => void, variant?: PodiumVariant }> = ({ players, onPlayerClick, variant = 'emerald' }) => {
   const podiumOrder: (RankingPlayer & { rank: number })[] = [];
   if (players[1]) podiumOrder.push({ ...players[1], rank: 2 });
   if (players[0]) podiumOrder.push({ ...players[0], rank: 1 });
@@ -153,11 +371,11 @@ const Podium: React.FC<{ players: RankingPlayer[], onPlayerClick: (p: RankingPla
   return (
     <div className="flex items-end justify-center gap-3 sm:gap-6 px-4 h-64 sm:h-72">
       {podiumOrder.map((player) => (
-        <PodiumStep 
-          key={player.id} 
-          player={player} 
-          rank={player.rank} 
-          onClick={() => onPlayerClick(player)} 
+        <PodiumStep
+          key={player.id}
+          player={player}
+          rank={player.rank}
+          onClick={() => onPlayerClick(player)}
           variant={variant}
         />
       ))}
@@ -165,12 +383,18 @@ const Podium: React.FC<{ players: RankingPlayer[], onPlayerClick: (p: RankingPla
   );
 };
 
-const PodiumStep: React.FC<{ player: RankingPlayer, rank: number, onClick: () => void, variant: 'emerald' | 'orange' }> = ({ player, rank, onClick, variant }) => {
+const VARIANT_COLORS: Record<PodiumVariant, { border: string; bg: string; text: string }> = {
+  emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  orange:  { border: 'border-orange-500/40',  bg: 'bg-orange-500/10',  text: 'text-orange-400' },
+  red:     { border: 'border-red-500/40',      bg: 'bg-red-500/10',     text: 'text-red-400' },
+  blue:    { border: 'border-blue-500/40',     bg: 'bg-blue-500/10',    text: 'text-blue-400' },
+  violet:  { border: 'border-violet-500/40',   bg: 'bg-violet-500/10',  text: 'text-violet-400' },
+};
+
+const PodiumStep: React.FC<{ player: RankingPlayer, rank: number, onClick: () => void, variant: PodiumVariant }> = ({ player, rank, onClick, variant }) => {
   const isFirst = rank === 1;
   const isSecond = rank === 2;
-  const isThird = rank === 3;
 
-  // Barras de tamanho uniforme conforme solicitado
   const heightClass = 'h-full';
   
   const colorClass = isFirst ? 'from-yellow-400 to-yellow-600 shadow-yellow-500/30' : 
@@ -239,6 +463,7 @@ const PodiumStep: React.FC<{ player: RankingPlayer, rank: number, onClick: () =>
         <p className={`text-[11px] font-black truncate leading-tight ${isFirst ? 'text-white' : 'text-slate-400'}`}>
           {player.name.split(' ')[0]}
         </p>
+        <div className={`mt-1 mx-auto h-0.5 w-8 rounded-full ${VARIANT_COLORS[variant].bg} border ${VARIANT_COLORS[variant].border}`} />
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ interface ConfirmationModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   isLoading?: boolean;
+  zIndex?: number;
 }
 
 export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
@@ -20,12 +21,13 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   description,
   confirmLabel = "Confirmar",
   cancelLabel = "Cancelar",
-  isLoading = false
+  isLoading = false,
+  zIndex = 100
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200" style={{ zIndex }}>
       <div className="w-full max-w-xs bg-slate-900 border border-slate-800 rounded-[2rem] shadow-2xl p-6 animate-in zoom-in duration-200">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto border border-red-500/20 text-red-500">

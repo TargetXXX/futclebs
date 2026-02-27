@@ -15,6 +15,7 @@ import { MatchCommentsModal } from './modals/match/MatchCommentsModal.tsx';
 import { VotingStatusModal } from './modals/match/VotingStatusModal.tsx';
 import { PlayerPositionSelectorModal } from './modals/player/PlayerPositionSelectorModal.tsx';
 import { AvatarModal } from './modals/player/AvatarModal.component.tsx';
+import { SeasonModal } from './modals/admin/SeasonModal.tsx';
 
 interface AllModalsProps {
   modals: any;
@@ -209,6 +210,13 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isGoalkeeper={userProfile.is_goalkeeper}
         currentPositions={userProfile.positions}
         onSave={() => onFetchUserProfile(userProfile.id)}
+      />
+
+      {/* Season Modal */}
+      <SeasonModal
+        isOpen={modals.isSeasonModalOpen}
+        onClose={() => modals.closeModal('isSeasonModalOpen')}
+        currentUserId={userProfile.id}
       />
     </>
   );
