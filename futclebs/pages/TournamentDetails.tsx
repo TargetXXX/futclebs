@@ -22,7 +22,7 @@ import {
   Typography,
   message,
 } from "antd";
-import { ArrowLeftOutlined, PlusOutlined, ShuffleOutlined, TeamOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, PlusOutlined, SwapOutlined, TeamOutlined } from "@ant-design/icons";
 import { TeamPreset, loadTeamPresets } from "@/utils/teamPresets";
 
 type TournamentType = "league" | "knockout";
@@ -740,7 +740,7 @@ export default function TournamentDetails() {
                   style={{ minWidth: 220 }}
                 />
                 <Button
-                  icon={<ShuffleOutlined />}
+                  icon={<SwapOutlined />}
                   className={primaryButtonClass}
                   type="primary"
                   loading={isBusy}
