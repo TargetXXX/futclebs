@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../services/supabase.ts';
+import { supabase } from '../../../services/supabase';
+import { ConfirmationModal } from '../shared/ConfirmationModal';
 
 interface VotingStatusModalProps {
   isOpen: boolean;
@@ -25,6 +26,9 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
   const [matchDate, setMatchDate] = useState('');
   const [completingVoteId, setCompletingVoteId] = useState<string | null>(null);
   const [resettingPlayerId, setResettingPlayerId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [confirmFinish, setConfirmFinish] = useState<{ open: boolean; playerId: string | null }>({ open: false, playerId: null });
+  const [confirmReset, setConfirmReset] = useState<{ open: boolean; playerId: string | null }>({ open: false, playerId: null });
 
   useEffect(() => {
     if (!isOpen) {
@@ -33,43 +37,32 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
       setLoading(false);
       return;
     }
-
-    if (matchId && isAdmin) {
-      loadVotingStatus();
-    }
+    if (matchId && isAdmin) loadVotingStatus();
   }, [isOpen, matchId, isAdmin]);
 
-  const handleForceCompleteVote = async (playerId: string) => {
-    if (!confirm('Tem certeza que deseja marcar a votação deste jogador como completa? Isso não pode ser desfeito.')) {
-      return;
-    }
+  const formatDate = (date: string) =>
+    new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 
+  const handleForceCompleteVote = (playerId: string) => setConfirmFinish({ open: true, playerId });
+
+  const handleConfirmFinish = async () => {
+    const playerId = confirmFinish.playerId;
+    if (!playerId) return;
+    setConfirmFinish({ open: false, playerId: null });
     setCompletingVoteId(playerId);
     try {
       const player = players.find(p => p.id === playerId);
-      if (!player || !player.missingVotes || player.missingVotes.length === 0) {
-        return;
-      }
+      if (!player?.missingVotes?.length) return;
 
       const votesToInsert = player.missingVotes.map(targetId => ({
         match_id: matchId,
         voter_id: playerId,
         target_player_id: targetId,
-        velocidade: 3,
-        finalizacao: 3,
-        passe: 3,
-        drible: 3,
-        defesa: 3,
-        fisico: 3,
-        esportividade: 5
+        velocidade: 3, finalizacao: 3, passe: 3, drible: 3, defesa: 3, fisico: 3, esportividade: 5
       }));
 
-      const { error } = await supabase
-        .from('player_votes')
-        .insert(votesToInsert);
-
+      const { error } = await supabase.from('player_votes').insert(votesToInsert);
       if (error) throw error;
-
       await loadVotingStatus();
     } catch (err) {
       console.error('Erro ao completar votação:', err);
@@ -79,39 +72,24 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
     }
   };
 
-  const handleResetPlayerVotes = async (playerId: string) => {
-    // Validação de super admin
-    if (!isAdmin) {
-      alert('❌ Acesso negado!\n\nApenas super admins podem resetar votos.');
-      return;
-    }
+  const handleResetPlayerVotes = (playerId: string) => {
+    if (!isAdmin) return;
+    setConfirmReset({ open: true, playerId });
+  };
 
-    const player = players.find(p => p.id === playerId);
-    if (!player) return;
-
-    const confirmText = `🔄 Resetar Votos de ${player.name}\n\nIsso irá:\n❌ Deletar TODOS os votos FEITOS por ${player.name} nesta partida\n✅ Permitir que ele vote novamente do zero\n✅ Manter os votos que ele RECEBEU de outros jogadores\n\nVotos atuais: ${player.votedCount}/${player.totalTeammates}\n\nTem certeza que deseja continuar?`;
-
-    if (!confirm(confirmText)) {
-      return;
-    }
-
+  const handleConfirmReset = async () => {
+    const playerId = confirmReset.playerId;
+    if (!playerId) return;
+    setConfirmReset({ open: false, playerId: null });
     setResettingPlayerId(playerId);
     try {
-      // Deletar APENAS os votos FEITOS por este jogador (voter_id)
       const { error } = await supabase
         .from('player_votes')
         .delete()
         .eq('match_id', matchId)
         .eq('voter_id', playerId);
-
-      if (error) {
-        console.error('Erro ao resetar votos:', error);
-        throw new Error(`Erro ao deletar votos: ${error.message}`);
-      }
-
+      if (error) throw error;
       await loadVotingStatus();
-
-      alert(`✅ Votos de ${player.name} resetados!\n\n${player.votedCount} voto(s) deletados.\n${player.name} pode votar novamente.`);
     } catch (err: any) {
       console.error('Erro ao resetar votos:', err);
       alert(`❌ Erro ao resetar votos: ${err?.message || 'Verifique o console'}`);
@@ -129,9 +107,7 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
         .eq('id', matchId)
         .single();
 
-      if (match) {
-        setMatchDate(match.match_date);
-      }
+      if (match) setMatchDate(match.match_date);
 
       const { data: matchResult } = await supabase
         .from('match_results')
@@ -139,14 +115,10 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
         .eq('match_id', matchId)
         .maybeSingle();
 
-      if (!matchResult) {
-        setPlayers([]);
-        setLoading(false);
-        return;
-      }
+      if (!matchResult) { setPlayers([]); return; }
 
-      const teamA = matchResult.players_team_a || [];
-      const teamB = matchResult.players_team_b || [];
+      const teamA: string[] = matchResult.players_team_a || [];
+      const teamB: string[] = matchResult.players_team_b || [];
       const allPlayerIds = [...teamA, ...teamB];
 
       const { data: playersData } = await supabase
@@ -154,11 +126,7 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
         .select('id, name, is_goalkeeper')
         .in('id', allPlayerIds);
 
-      if (!playersData) {
-        setPlayers([]);
-        setLoading(false);
-        return;
-      }
+      if (!playersData) { setPlayers([]); return; }
 
       const existingPlayerIds = new Set(playersData.map(p => p.id));
 
@@ -172,7 +140,6 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
         const team = isTeamA ? 'A' : teamB.includes(player.id) ? 'B' : null;
         const teammates = isTeamA ? teamA : teamB;
         const teammatesIds = teammates.filter(id => id !== player.id && existingPlayerIds.has(id));
-
         const playerVotes = votes?.filter(v => v.voter_id === player.id && existingPlayerIds.has(v.target_player_id)) || [];
         const votedIds = new Set(playerVotes.map(v => v.target_player_id));
         const missingVotes = teammatesIds.filter(id => !votedIds.has(id));
@@ -190,12 +157,8 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
       });
 
       statusList.sort((a, b) => {
-        if (a.hasCompleted !== b.hasCompleted) {
-          return a.hasCompleted ? 1 : -1;
-        }
-        if (a.team !== b.team) {
-          return (a.team || 'Z').localeCompare(b.team || 'Z');
-        }
+        if (a.hasCompleted !== b.hasCompleted) return a.hasCompleted ? 1 : -1;
+        if (a.team !== b.team) return (a.team || 'Z').localeCompare(b.team || 'Z');
         return a.name.localeCompare(b.name);
       });
 
@@ -207,6 +170,36 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
     }
   };
 
+  const handleCopy = (key: 'voted' | 'pending' | 'all') => {
+    const voted = players.filter(p => p.hasCompleted).map(p => p.name);
+    const pending = players.filter(p => !p.hasCompleted && p.totalTeammates > 0).map(p => p.name);
+    const dateStr = matchDate ? formatDate(matchDate) : '';
+    const footer = '\n\n_Gerado por FutClebs_';
+
+    let text = '';
+    if (key === 'voted') {
+      text = `✅ *Já votaram*${dateStr ? ` — ${dateStr}` : ''} (${voted.length}):\n`;
+      text += voted.length > 0 ? voted.map(n => `• ${n}`).join('\n') : 'Ninguém votou ainda.';
+    } else if (key === 'pending') {
+      text = `⚠️ *Falta votar*${dateStr ? ` — ${dateStr}` : ''} (${pending.length}):\n`;
+      text += pending.length > 0 ? pending.map(n => `• ${n}`).join('\n') : '✅ Todos já votaram!';
+    } else {
+      text = `📊 *Status de Votação*${dateStr ? ` — ${dateStr}` : ''}\n\n`;
+      text += voted.length > 0
+        ? `✅ Já votaram (${voted.length}):\n${voted.map(n => `• ${n}`).join('\n')}`
+        : '✅ Ninguém votou ainda.';
+      text += '\n\n';
+      text += pending.length > 0
+        ? `⚠️ Falta votar (${pending.length}):\n${pending.map(n => `• ${n}`).join('\n')}`
+        : '✅ Todos já votaram!';
+    }
+
+    navigator.clipboard.writeText(text + footer).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    });
+  };
+
   if (!isOpen) return null;
 
   const completedCount = players.filter(p => p.hasCompleted).length;
@@ -214,6 +207,7 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
   const completionPercent = totalPlayers > 0 ? Math.round((completedCount / totalPlayers) * 100) : 0;
 
   return (
+    <>
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
       <div className="bg-slate-900 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-slate-800 shadow-2xl animate-in slide-in-from-bottom-4 duration-300">
         <div className="p-6 border-b border-slate-800">
@@ -250,6 +244,50 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
               />
             </div>
           </div>
+
+          {players.length > 0 && (
+            <div className="flex gap-2 mt-3 flex-wrap">
+              <button
+                onClick={() => handleCopy('pending')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  copiedKey === 'pending'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {copiedKey === 'pending' ? '✓ Copiado!' : `Falta votar (${players.filter(p => !p.hasCompleted && p.totalTeammates > 0).length})`}
+              </button>
+              <button
+                onClick={() => handleCopy('voted')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  copiedKey === 'voted'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {copiedKey === 'voted' ? '✓ Copiado!' : `Já votaram (${players.filter(p => p.hasCompleted).length})`}
+              </button>
+              <button
+                onClick={() => handleCopy('all')}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  copiedKey === 'all'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {copiedKey === 'all' ? '✓ Copiado!' : 'Copiar tudo'}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-3">
@@ -363,6 +401,28 @@ export const VotingStatusModal: React.FC<VotingStatusModalProps> = ({ isOpen, on
         </div>
       </div>
     </div>
+
+    <ConfirmationModal
+      isOpen={confirmFinish.open}
+      onClose={() => setConfirmFinish({ open: false, playerId: null })}
+      onConfirm={handleConfirmFinish}
+      isLoading={completingVoteId === confirmFinish.playerId}
+      title="Finalizar Votação?"
+      description={`Isso vai preencher os votos faltantes de ${players.find(p => p.id === confirmFinish.playerId)?.name ?? 'este jogador'} com notas médias (3). Essa ação não pode ser desfeita.`}
+      confirmLabel="Sim, Finalizar"
+      cancelLabel="Cancelar"
+    />
+
+    <ConfirmationModal
+      isOpen={confirmReset.open}
+      onClose={() => setConfirmReset({ open: false, playerId: null })}
+      onConfirm={handleConfirmReset}
+      isLoading={resettingPlayerId === confirmReset.playerId}
+      title="Resetar Votos?"
+      description={`Todos os votos feitos por ${players.find(p => p.id === confirmReset.playerId)?.name ?? 'este jogador'} nesta partida serão deletados. Ele poderá votar novamente do zero.`}
+      confirmLabel="Sim, Resetar"
+      cancelLabel="Cancelar"
+    />
+  </>
   );
 };
-
