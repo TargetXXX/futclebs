@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
-import { supabase } from '../services/supabase';
 import { Step } from '../types/app.types';
 import { cleanPhone } from '../utils/phone.utils';
-import { DEFAULT_OVERALL } from '../constants/app.constants';
+import { authApi } from '../services/authApi';
 
 export const useAuthHandlers = (
   loadUserData: (userId: string) => Promise<void>,
@@ -21,15 +20,10 @@ export const useAuthHandlers = (
     setError(null);
 
     try {
-      const { data } = await supabase
-        .from('players')
-        .select('id')
-        .eq('phone', clean)
-        .maybeSingle();
-
-      setStep(data ? Step.LOGIN : Step.REGISTER);
+      const exists = await authApi.checkPhoneExists(clean);
+      setStep(exists ? Step.LOGIN : Step.REGISTER);
     } catch (err) {
-      setError('Erro ao verificar telefone');
+      setError(err instanceof Error ? err.message : 'Erro ao verificar telefone');
     } finally {
       setLoading(false);
     }
@@ -40,18 +34,17 @@ export const useAuthHandlers = (
     setError(null);
 
     try {
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        phone: `+55${cleanPhone(phone)}`,
-        password
-      });
+      const userId = await authApi.login(cleanPhone(phone), password);
 
-      if (loginError) throw loginError;
-    } catch (err: any) {
-      setError(err.message === 'Invalid login credentials' ? 'Senha incorreta' : 'Erro ao entrar');
+      if (userId) {
+        await loadUserData(userId);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao entrar');
     } finally {
       setLoading(false);
     }
-  }, [setError, setLoading]);
+  }, [loadUserData, setError, setLoading]);
 
   const handleRegister = useCallback(async (
     phone: string,
@@ -73,39 +66,21 @@ export const useAuthHandlers = (
     setError(null);
 
     try {
-      const clean = cleanPhone(phone);
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        phone: `+55${clean}`,
+      const userId = await authApi.register({
+        phone: cleanPhone(phone),
         password,
+        name,
+        isGoalkeeper,
       });
 
-      if (signUpError) throw signUpError;
-      if (!signUpData.user) throw new Error('Usuário não criado');
+      if (userId) {
+        await loadUserData(userId);
+      }
 
-      const userId = signUpData.user.id;
-
-      const { error: profileError } = await supabase.from('players').insert({
-        id: userId,
-        name: name.trim(),
-        phone: clean,
-        is_goalkeeper: isGoalkeeper,
-        avatar: null,
-      });
-
-      if (profileError) throw profileError;
-
-      const { error: statsError } = await supabase.from('player_stats').insert({
-        player_id: userId,
-        overall: DEFAULT_OVERALL
-      });
-
-      if (statsError) throw statsError;
-
-      await loadUserData(userId);
       setStep(Step.PHONE_CHECK);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || 'Erro ao criar conta');
+      setError(err instanceof Error ? err.message : 'Erro ao criar conta');
     } finally {
       setLoading(false);
     }
@@ -117,4 +92,3 @@ export const useAuthHandlers = (
     handleRegister
   };
 };
-
