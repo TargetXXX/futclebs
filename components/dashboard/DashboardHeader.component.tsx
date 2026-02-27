@@ -1,11 +1,12 @@
 import React from 'react';
-import { Player } from '../../services/supabase.ts';
+import { Player } from '../../services/supabase';
 
 interface DashboardHeaderProps {
   userProfile: Player;
   isSuperAdmin: boolean;
   onOpenUserManagement: () => void;
   onOpenCreateMatch: () => void;
+  onOpenSeasonModal: () => void;
   onLogout: () => void;
 }
 
@@ -14,7 +15,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   isSuperAdmin,
   onOpenUserManagement,
   onOpenCreateMatch,
-  onLogout
+  onOpenSeasonModal,
+  onLogout,
 }) => {
   return (
     <header className="flex justify-between items-center">
@@ -38,6 +40,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
           </button>
         )}
 
+        {isSuperAdmin && (
+          <button
+            onClick={onOpenSeasonModal}
+            className="flex-1 sm:flex-none px-4 py-2 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/20 rounded-xl transition-all text-xs font-black uppercase"
+            title="Gerenciar Temporadas"
+          >
+            🏆 Temporada
+          </button>
+        )}
+
         {userProfile.is_admin && (
           <button
             onClick={onOpenCreateMatch}
@@ -57,4 +69,3 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     </header>
   );
 };
-
