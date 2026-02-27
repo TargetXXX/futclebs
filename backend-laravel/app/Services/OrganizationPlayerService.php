@@ -8,11 +8,13 @@ use Illuminate\Validation\ValidationException;
 
 class OrganizationPlayerService
 {
-    public function addPlayer(
-        Organization $organization,
-        Player $player
-    ): void {
+    public function __construct(
+        private OrganizationSeasonService $seasonService
+    ) {
+    }
 
+    public function addPlayer(Organization $organization, Player $player): void
+    {
         if ($organization->players()->where('player_id', $player->id)->exists()) {
             throw ValidationException::withMessages([
                 'player' => ['Player já pertence a esta organização.']
@@ -27,16 +29,15 @@ class OrganizationPlayerService
             'drible' => 60,
             'defesa' => 60,
             'fisico' => 60,
+            'esportividade' => 100,
             'overall' => 60,
         ]);
+
+        $this->seasonService->upsertPlayerOverallSnapshot($organization, $player, 60);
     }
 
-
-    public function removePlayer(
-        Organization $organization,
-        Player $player
-    ): void {
-
+    public function removePlayer(Organization $organization, Player $player): void
+    {
         if (!$organization->players()->where('player_id', $player->id)->exists()) {
             throw ValidationException::withMessages([
                 'player' => ['Player não pertence a esta organização.']

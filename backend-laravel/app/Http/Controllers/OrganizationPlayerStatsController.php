@@ -7,7 +7,7 @@ use App\Models\Organization;
 use App\Models\Player;
 use App\Services\OrganizationPlayerStatsService;
 
-class OrganizationPlayerController extends Controller
+class OrganizationPlayerStatsController extends Controller
 {
     public function __construct(
         private OrganizationPlayerStatsService $service

@@ -42,6 +42,8 @@ interface Organization {
   description?: string;
   stats?: { overall?: number };
   is_admin?: boolean;
+  seasons_enabled?: boolean;
+  season_duration_days?: number | null;
 }
 
 type SortOption = "name-asc" | "name-desc" | "overall-desc" | "overall-asc";
@@ -193,6 +195,14 @@ export default function DashboardHome() {
       .slice(0, 5);
   }, [organizations]);
 
+
+  const seasonAdoptionSummary = useMemo(() => {
+    const enabledCount = organizations.filter((org) => org.seasons_enabled).length;
+    const disabledCount = organizations.length - enabledCount;
+
+    return { enabledCount, disabledCount };
+  }, [organizations]);
+
   const strongestOrganization = useMemo(() => {
     if (!organizations.length) return null;
 
@@ -232,6 +242,11 @@ export default function DashboardHome() {
             <Space wrap>
               {org.is_admin && <Tag color="gold">ADMIN</Tag>}
               {isFavorite && <Tag color="purple">FAVORITA</Tag>}
+              {org.seasons_enabled ? (
+                <Tag color="blue">TEMPORADAS {org.season_duration_days ? `(${org.season_duration_days}d)` : ""}</Tag>
+              ) : (
+                <Tag>SEM TEMPORADAS</Tag>
+              )}
             </Space>
           </Space>
           <Badge count={`OVR ${overall}`} color="#34d399" />
@@ -307,6 +322,8 @@ export default function DashboardHome() {
           <Col xs={24} md={12} lg={6}><Card><Statistic title="Admin em" value={dashboardStats.adminCount} /></Card></Col>
           <Col xs={24} md={12} lg={6}><Card><Statistic title="Overall médio" value={dashboardStats.avgOverall} valueStyle={{ color: '#34d399' }} /></Card></Col>
           <Col xs={24} md={12} lg={6}><Card><Statistic title="Favoritas" value={dashboardStats.favoritesCount} valueStyle={{ color: '#facc15' }} /></Card></Col>
+          <Col xs={24} md={12} lg={12}><Card><Statistic title="Orgs com temporadas" value={seasonAdoptionSummary.enabledCount} valueStyle={{ color: '#60a5fa' }} /></Card></Col>
+          <Col xs={24} md={12} lg={12}><Card><Statistic title="Orgs sem temporadas" value={seasonAdoptionSummary.disabledCount} /></Card></Col>
         </Row>
 
         {strongestOrganization && (
@@ -343,6 +360,7 @@ export default function DashboardHome() {
                     <Space>
                       {org.is_admin && <Tag color="gold">ADMIN</Tag>}
                       <Tag color="green">OVR {org.stats?.overall ?? 0}</Tag>
+                      {org.seasons_enabled ? <Tag color="blue">Temporadas ON</Tag> : <Tag>Temporadas OFF</Tag>}
                     </Space>
                   </Flex>
                 </Card>

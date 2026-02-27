@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\OrganizationController;
 use App\Http\Controllers\OrganizationPlayerController;
+use App\Http\Controllers\OrganizationPlayerStatsController;
 use App\Http\Controllers\TournamentController;
 use App\Http\Controllers\StandingController;
 use App\Http\Controllers\MatchController;
@@ -187,6 +188,12 @@ Route::middleware('auth:sanctum')->group(function () {
                 [OrganizationController::class, 'updatePassword']
             );
 
+
+            Route::put(
+                '/organizations/{organization}/season-settings',
+                [OrganizationController::class, 'updateSeasonSettings']
+            );
+
             // Adicionar membro
             Route::post(
                 '/organizations/{organization}/players',
@@ -202,7 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
             // Atualizar stats do player na organização
             Route::put(
                 '/organizations/{organization}/players/{player}/stats',
-                [OrganizationPlayerController::class, 'updateStats']
+                [OrganizationPlayerStatsController::class, 'updateStats']
             );
 
             // Atualizar estatísticas do jogador na partida

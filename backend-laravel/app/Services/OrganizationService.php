@@ -9,12 +9,18 @@ use Illuminate\Validation\ValidationException;
 
 class OrganizationService
 {
+    public function __construct(
+        private OrganizationSeasonService $seasonService
+    ) {
+    }
 
     public function create(array $data, Player $creator): Organization
     {
-        $organization = Organization::create($data);
+        $organization = Organization::create(array_merge([
+            'seasons_enabled' => false,
+            'season_duration_days' => null,
+        ], $data));
 
-        // Criador vira admin automaticamente
         $organization->players()->attach($creator->id, [
             'is_admin' => true,
             'velocidade' => 60,
@@ -23,8 +29,11 @@ class OrganizationService
             'drible' => 60,
             'defesa' => 60,
             'fisico' => 60,
+            'esportividade' => 100,
             'overall' => 60,
         ]);
+
+        $this->seasonService->upsertPlayerOverallSnapshot($organization, $creator, 60);
 
         return $organization;
     }
@@ -44,14 +53,13 @@ class OrganizationService
             ])
             ->get()
             ->map(function ($organization) {
-
                 return [
                     'id' => $organization->id,
                     'name' => $organization->name,
                     'description' => $organization->description,
-
                     'is_admin' => $organization->pivot->is_admin,
-
+                    'seasons_enabled' => (bool) $organization->seasons_enabled,
+                    'season_duration_days' => $organization->season_duration_days,
                     'stats' => [
                         'velocidade' => $organization->pivot->velocidade,
                         'finalizacao' => $organization->pivot->finalizacao,
@@ -70,14 +78,8 @@ class OrganizationService
         return Organization::all();
     }
 
-
-
-    public function join(
-        Organization $organization,
-        Player $player,
-        string $password
-    ): void {
-
+    public function join(Organization $organization, Player $player, string $password): void
+    {
         if ($organization->players()->where('player_id', $player->id)->exists()) {
             throw ValidationException::withMessages([
                 'organization' => ['Você já pertence a esta organização.']
@@ -98,16 +100,15 @@ class OrganizationService
             'drible' => 60,
             'defesa' => 60,
             'fisico' => 60,
+            'esportividade' => 100,
             'overall' => 60,
         ]);
+
+        $this->seasonService->upsertPlayerOverallSnapshot($organization, $player, 60);
     }
 
-    public function updatePassword(
-        Organization $organization,
-        string $currentPassword,
-        string $newPassword
-    ): void {
-
+    public function updatePassword(Organization $organization, string $currentPassword, string $newPassword): void
+    {
         if (!Hash::check($currentPassword, $organization->password)) {
             throw ValidationException::withMessages([
                 'current_password' => ['Senha atual incorreta.']
@@ -117,5 +118,11 @@ class OrganizationService
         $organization->update([
             'password' => $newPassword
         ]);
+    }
+
+    public function updateSeasonSettings(Organization $organization, array $settings): Organization
+    {
+        $organization->update($settings);
+        return $organization->fresh();
     }
 }
