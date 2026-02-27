@@ -13,7 +13,7 @@ export const TabsNavigation: React.FC<TabsNavigationProps> = ({
   getCategoryCount
 }) => {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 bg-slate-900/60 p-1.5 rounded-2xl border border-slate-800 gap-1.5">
+    <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800 gap-1 overflow-x-auto no-scrollbar">
       <TabButton
         active={activeCategory === 'open'}
         onClick={() => onCategoryChange('open')}
@@ -52,12 +52,12 @@ const TabButton: React.FC<{
 }> = ({ active, onClick, label, count, highlight }) => (
   <button
     onClick={onClick}
-    className={`py-2.5 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all relative flex items-center justify-center gap-2 ${
+    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all relative flex items-center justify-center gap-2 min-w-fit ${
       active
         ? highlight
-          ? 'bg-orange-500 text-slate-950 shadow-lg shadow-orange-600/30'
-          : 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-600/30'
-        : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+          ? 'bg-orange-600 text-slate-950 shadow-lg shadow-orange-600/20'
+          : 'bg-emerald-600 text-slate-950 shadow-lg shadow-emerald-600/20'
+        : 'text-slate-500 hover:text-slate-300'
     }`}
   >
     {label}
@@ -65,10 +65,10 @@ const TabButton: React.FC<{
       <span
         className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none ${
           active
-            ? 'bg-slate-950/25 text-slate-950'
+            ? 'bg-slate-950/20 text-slate-950'
             : highlight
-            ? 'bg-orange-500/20 text-orange-300'
-            : 'bg-slate-700 text-slate-300'
+            ? 'bg-orange-600/20 text-orange-500'
+            : 'bg-slate-800 text-slate-400'
         }`}
       >
         {count}
@@ -76,3 +76,4 @@ const TabButton: React.FC<{
     )}
   </button>
 );
+
