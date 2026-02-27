@@ -10,6 +10,7 @@ import {
   SettingOutlined,
   TeamOutlined,
   UserOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/contexts/AuthContext";
 import { PlayerAvatar } from "../commons/PlayerAvatar";
@@ -25,6 +26,7 @@ export const UniversalNavbar: React.FC = () => {
   const [profileOpen, setProfileOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [liveClock, setLiveClock] = React.useState(() => new Date());
+  const canAccessSuperAdmin = Boolean(player?.is_superadmin || player?.is_admin);
 
   React.useEffect(() => {
     const intervalId = window.setInterval(() => setLiveClock(new Date()), 1000);
@@ -34,6 +36,9 @@ export const UniversalNavbar: React.FC = () => {
   const quickLinks = [
     { key: "dashboard", label: "Dashboard", icon: <HomeOutlined />, path: "/dashboard" },
     { key: "join", label: "Organizações", icon: <TeamOutlined />, path: "/join" },
+    ...(canAccessSuperAdmin
+      ? [{ key: "superadmin", label: "Super Admin", icon: <SafetyCertificateOutlined />, path: "/dashboard/superadmin" }]
+      : []),
   ];
 
   const orgIdFromPath = React.useMemo(() => {
@@ -118,6 +123,14 @@ export const UniversalNavbar: React.FC = () => {
                   label: player?.name || "Minha conta",
                   disabled: true,
                 },
+                ...(canAccessSuperAdmin
+                  ? [{
+                      key: "superadmin",
+                      icon: <SafetyCertificateOutlined />,
+                      label: "Painel superadmin",
+                      onClick: () => navigate("/dashboard/superadmin"),
+                    }]
+                  : []),
                 { type: "divider" },
                 {
                   key: "logout",

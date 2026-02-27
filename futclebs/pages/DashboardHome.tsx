@@ -54,6 +54,7 @@ interface AuthUser {
   uuid?: string;
   name: string;
   is_admin?: boolean;
+  is_superadmin?: boolean;
 }
 
 
@@ -287,7 +288,7 @@ export default function DashboardHome() {
           </Flex>
         </Card>
 
-        {currentUser?.is_admin && (
+        {(currentUser?.is_superadmin || currentUser?.is_admin) && (
           <Card
             style={{
               marginBottom: 18,

@@ -64,6 +64,6 @@ class MatchService
 
     public function findWithRelations(MatchModel $match): MatchModel
     {
-        return $match->load('teamA', 'teamB', 'tournament', 'result', 'players', 'comments');
+        return $match->load('organization', 'teamA', 'teamB', 'tournament', 'result', 'players', 'comments');
     }
 }

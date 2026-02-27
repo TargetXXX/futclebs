@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Services\AuthService;
+use App\Support\SuperAdmin;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -38,10 +39,15 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
+        $user = $request->user();
+
         return response()->json([
             'success' => true,
             'message' => 'Perfil carregado com sucesso',
-            'data' => $request->user(),
+            'data' => [
+                ...$user->toArray(),
+                'is_superadmin' => SuperAdmin::check($user),
+            ],
         ]);
     }
 
