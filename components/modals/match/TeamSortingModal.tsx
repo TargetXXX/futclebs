@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, Player, PlayerStats } from '../../../services/supabase.ts';
 import { calculateByPosition } from '@/utils/overall.utils.ts';
 
@@ -234,6 +234,14 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
     });
   };
 
+  const handleReorder = (teamKey: 'teamA' | 'teamB', fromIndex: number, toIndex: number) => {
+    if (!teams || isLocked || !isAdmin || fromIndex === toIndex) return;
+    const list = [...teams[teamKey]];
+    const [moved] = list.splice(fromIndex, 1);
+    list.splice(toIndex, 0, moved);
+    setTeams({ ...teams, [teamKey]: list });
+  };
+
   const handleSave = async () => {
     if (!teams || saving || isLocked || !isAdmin) return;
     setSaving(true);
@@ -344,17 +352,21 @@ export const TeamSortingModal: React.FC<TeamSortingModalProps> = ({ isOpen, onCl
                 </div>
               )}
               <TeamColumn 
+                teamKey="teamA"
                 title="Time A" 
                 players={teams.teamA} 
                 color="emerald" 
                 onMovePlayer={(pid) => handleMovePlayer(pid, 'teamA')} 
+                onReorder={(from, to) => handleReorder('teamA', from, to)}
                 isLocked={isLocked || !isAdmin}
               />
               <TeamColumn 
+                teamKey="teamB"
                 title="Time B" 
                 players={teams.teamB} 
                 color="blue" 
                 onMovePlayer={(pid) => handleMovePlayer(pid, 'teamB')} 
+                onReorder={(from, to) => handleReorder('teamB', from, to)}
                 isLocked={isLocked || !isAdmin}
               />
             </div>
@@ -394,136 +406,192 @@ const TeamColumn = ({
   players, 
   color, 
   onMovePlayer, 
+  onReorder,
   isLocked 
 }: { 
+  teamKey: 'teamA' | 'teamB',
   title: string, 
   players: PlayerWithStats[], 
   color: 'emerald' | 'blue', 
   onMovePlayer: (pid: string) => void,
+  onReorder: (fromIndex: number, toIndex: number) => void,
   isLocked: boolean
 }) => {
   const gks = players.filter(p => p.is_goalkeeper).length;
   const field = players.length - gks;
   const totalOvr = Math.round(players.reduce((acc, p) => acc + (p.stats?.overall || 0), 0));
 
+  const dragIndexRef = useRef<number | null>(null);
+  const touchIndexRef = useRef<number | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // ── Desktop drag-and-drop ──────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    if (isLocked) { e.preventDefault(); return; }
+    dragIndexRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    (e.currentTarget as HTMLDivElement).style.opacity = '0.4';
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLDivElement).style.opacity = '1';
+    dragIndexRef.current = null;
+    // remove all drag-over highlights
+    listRef.current?.querySelectorAll<HTMLElement>('[data-drag-over]').forEach(el => {
+      el.removeAttribute('data-drag-over');
+      el.style.borderColor = '';
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    if (isLocked) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    // highlight
+    listRef.current?.querySelectorAll<HTMLElement>('[data-drag-over]').forEach(el => {
+      el.removeAttribute('data-drag-over');
+    });
+    (e.currentTarget as HTMLDivElement).setAttribute('data-drag-over', 'true');
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, toIndex: number) => {
+    if (isLocked) return;
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      onReorder(fromIndex, toIndex);
+    }
+    dragIndexRef.current = null;
+  };
+
+  // ── Touch drag-and-drop (mobile) ───────────────────────────────────────────
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>, index: number) => {
+    if (isLocked) return;
+    touchIndexRef.current = index;
+    (e.currentTarget as HTMLDivElement).style.opacity = '0.5';
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isLocked || touchIndexRef.current === null) return;
+    // don't call preventDefault here to avoid passive event warning
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+    if (!el) return;
+    const item = el.closest<HTMLElement>('[data-player-index]');
+    if (!item) return;
+    const targetIndex = Number(item.getAttribute('data-player-index'));
+    const fromIndex = touchIndexRef.current;
+    if (!Number.isNaN(targetIndex) && targetIndex !== fromIndex) {
+      onReorder(fromIndex, targetIndex);
+      touchIndexRef.current = targetIndex;
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    (e.currentTarget as HTMLDivElement).style.opacity = '1';
+    touchIndexRef.current = null;
+  };
+
   return (
-    <div className="space-y-4 relative z-10 flex flex-col">
-      <div className={`flex justify-between items-end border-b pb-3 ${color === 'emerald' ? 'border-emerald-500/30' : 'border-blue-500/30'}`}>
+    <div className="space-y-3 relative z-10 flex flex-col">
+      {/* Header */}
+      <div className={`flex justify-between items-center border-b pb-3 ${color === 'emerald' ? 'border-emerald-500/30' : 'border-blue-500/30'}`}>
         <div>
-          <h3 className={`font-black uppercase text-2xl ${color === 'emerald' ? 'text-emerald-500' : 'text-blue-500'}`}>{title}</h3>
-          <div className="flex gap-2 mt-1">
+          <h3 className={`font-black uppercase text-xl ${color === 'emerald' ? 'text-emerald-500' : 'text-blue-500'}`}>{title}</h3>
+          <div className="flex flex-wrap gap-1.5 mt-1 items-center">
             <span className="text-[9px] font-black uppercase text-slate-500 border border-slate-800 px-2 py-0.5 rounded-md">{field} Linha</span>
             <span className="text-[9px] font-black uppercase text-slate-500 border border-slate-800 px-2 py-0.5 rounded-md">{gks} Goleiro</span>
+            {!isLocked && (
+              <span className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">· arraste ☰</span>
+            )}
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Team OVR</p>
-          <p className="text-3xl font-black text-white tabular-nums">{totalOvr}</p>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">OVR</p>
+          <p className="text-2xl font-black text-white tabular-nums">{totalOvr}</p>
         </div>
       </div>
-      <div className="grid gap-2">
+
+      {/* Player list */}
+      <div ref={listRef} className="grid gap-1.5">
         {players.length === 0 ? (
           <div className="py-10 text-center border border-dashed border-slate-800 rounded-2xl">
             <p className="text-[10px] font-black uppercase text-slate-700">Equipe Vazia</p>
           </div>
         ) : (
-          players.map(p => (
-              <div
-                key={p.id}
-                className="group flex items-center gap-3 p-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl
-                          hover:bg-slate-800/70 hover:border-emerald-500/20 transition-all duration-300"
-              >
-                <div className="relative shrink-0">
-                  <div className="absolute -inset-2 rounded-full bg-emerald-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          players.map((p, idx) => (
+            <div
+              key={p.id}
+              data-player-index={idx}
+              draggable={!isLocked}
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDrop={(e) => handleDrop(e, idx)}
+              onTouchStart={(e) => handleTouchStart(e, idx)}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              className={`group flex items-center gap-2 p-2.5 bg-slate-800/40 border border-slate-700/50 rounded-xl hover:bg-slate-800/70 hover:border-emerald-500/20 transition-all duration-200 ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}`}
+            >
+              {/* Drag handle */}
+              {!isLocked && (
+                <div className="shrink-0 flex flex-col gap-[3px] px-0.5 text-slate-600 touch-none select-none">
+                  <span className="block w-3 h-[2px] bg-current rounded-full" />
+                  <span className="block w-3 h-[2px] bg-current rounded-full" />
+                  <span className="block w-3 h-[2px] bg-current rounded-full" />
+                </div>
+              )}
 
-                  {p.avatar ? (
-                    <img
-                      src={p.avatar}
-                      alt="Avatar"
-                      className="relative w-10 h-10 rounded-full object-cover border-2 border-white/15
-                                shadow-lg shadow-black/30
-                                group-hover:scale-[1.06] group-hover:border-white/40 transition-all duration-300"
-                    />
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                {p.avatar ? (
+                  <img src={p.avatar} alt="Avatar" className="w-8 h-8 rounded-full object-cover border-2 border-white/15 shadow-md" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-slate-900/60 border-2 border-white/10 flex items-center justify-center shadow-md">
+                    <span className="text-white font-black text-xs">{p.name?.charAt(0)?.toUpperCase()}</span>
+                  </div>
+                )}
+                {/* GK badge over avatar */}
+                {p.is_goalkeeper && (
+                  <span className="absolute -bottom-1 -right-1 bg-orange-500 text-white text-[7px] font-black px-1 rounded-full leading-tight">GK</span>
+                )}
+              </div>
+
+              {/* Name + positions */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-white truncate leading-tight">{p.name}</p>
+                <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                  {p.positions && p.positions.length > 0 ? (
+                    p.positions.map((pos, i) => (
+                      <span key={i} className="text-[8px] font-black uppercase text-slate-400">
+                        {pos === 'Goleiro' ? '🧤' : pos === 'Defesa' ? '🛡️' : pos === 'Meio' ? '⚡' : '⚽'}{pos}
+                      </span>
+                    ))
                   ) : (
-                    <div
-                      className="relative w-10 h-10 rounded-full bg-slate-900/60 border-2 border-white/10
-                                flex items-center justify-center
-                                shadow-lg shadow-black/30
-                                group-hover:scale-[1.06] group-hover:border-white/25 transition-all duration-300"
-                    >
-                      <span className="text-white font-black text-sm">
-                        {p.name?.charAt(0)?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0
-                              transition-all duration-300 group-hover:scale-105 ${
-                    p.is_goalkeeper
-                      ? 'bg-orange-500/20 text-orange-500 border border-orange-500/25 shadow-lg shadow-orange-500/10'
-                      : 'bg-slate-700/60 text-slate-300 border border-white/10'
-                  }`}
-                >
-                  {p.is_goalkeeper ? 'GK' : 'PL'}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate group-hover:text-white transition-colors">
-                    {p.name}
-                  </p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    {p.positions && p.positions.length > 0 ? (
-                      p.positions.map((pos, idx) => (
-                        <span
-                          key={idx}
-                          className="px-1.5 py-0.5 bg-slate-700/60 text-slate-300 rounded text-[8px] font-black uppercase border border-slate-600/50"
-                        >
-                          {pos === 'Goleiro' ? '🧤' : pos === 'Defesa' ? '🛡️' : pos === 'Meio' ? '⚡' : '⚽'} {pos}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {p.is_goalkeeper ? 'Goleiro' : 'Sem posição'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div
-                    className="px-2 py-1 bg-slate-950/60 rounded-xl border border-slate-800
-                              text-emerald-400 font-black text-[10px] tabular-nums
-                              group-hover:bg-emerald-500/10 group-hover:border-emerald-500/25 transition-all"
-                  >
-                    {Math.round((p.stats?.overall || 0))}
-                  </div>
-
-                  {!isLocked && (
-                    <button
-                      onClick={() => onMovePlayer(p.id)}
-                      className={`p-2 rounded-xl transition-all active:scale-95 ${
-                        color === 'emerald'
-                          ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white'
-                          : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-950'
-                      }`}
-                      title={color === 'emerald' ? "Mover para Time B" : "Mover para Time A"}
-                    >
-                      <svg
-                        className={`w-4 h-4 transition-transform ${color === 'emerald' ? 'rotate-0' : 'rotate-180'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                      </svg>
-                    </button>
+                    <span className="text-[8px] font-black uppercase text-slate-600">{p.is_goalkeeper ? 'Goleiro' : '—'}</span>
                   )}
                 </div>
               </div>
-            ))
 
+              {/* OVR + move button */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <div className="px-2 py-1 bg-slate-950/60 rounded-lg border border-slate-800 text-emerald-400 font-black text-[10px] tabular-nums">
+                  {Math.round(p.stats?.overall || 0)}
+                </div>
+                {!isLocked && (
+                  <button
+                    onClick={() => onMovePlayer(p.id)}
+                    className={`p-1.5 rounded-lg transition-all active:scale-95 ${color === 'emerald' ? 'bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white' : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-slate-950'}`}
+                    title={color === 'emerald' ? 'Mover para Time B' : 'Mover para Time A'}
+                  >
+                    <svg className={`w-3.5 h-3.5 ${color === 'emerald' ? 'rotate-0' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
