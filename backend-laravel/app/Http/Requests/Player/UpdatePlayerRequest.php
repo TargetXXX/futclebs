@@ -27,6 +27,7 @@ class UpdatePlayerRequest extends FormRequest
             'current_password' => ['required_with:password'],
 
             'avatar' => ['sometimes', 'string'],
+            'is_admin' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -45,6 +46,7 @@ class UpdatePlayerRequest extends FormRequest
             'current_password.required_with' => 'Senha atual é obrigatória para alterar a senha.',
 
             'avatar.string' => 'Avatar inválido.',
+            'is_admin.boolean' => 'O valor de admin global deve ser verdadeiro ou falso.',
 
         ];
     }
