@@ -1,5 +1,5 @@
 import { AuthCard } from "@/components/auth/AuthCard";
-import { api } from "@/services/axios";
+import { api, getApiErrorMessage, unwrapApiResponse } from "@/services/axios";
 import { cleanPhone, formatPhone } from "@/utils/phone.utils";
 import { MailOutlined, PhoneOutlined, UserOutlined } from "@ant-design/icons";
 import { Alert, Button, Col, Form, Input, Layout, Row, Select, Space, Switch, Tag, Typography } from "antd";
@@ -59,7 +59,7 @@ export default function Register() {
     setError(null);
 
     try {
-      const { data } = await api.post("/auth/register", {
+      const response = await api.post("/auth/register", {
         name: values.name.trim(),
         username: values.username.trim(),
         email: values.email?.trim() || null,
@@ -71,29 +71,31 @@ export default function Register() {
         is_goalkeeper: values.isGoalkeeper,
       });
 
+      const data = unwrapApiResponse<{ token: string; player: unknown }>(response.data);
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.player));
       navigate("/dashboard");
     } catch (requestError: any) {
-      setError(requestError.response?.data?.message ?? "Não foi possível concluir o cadastro.");
+      setError(getApiErrorMessage(requestError, "Não foi possível concluir o cadastro."));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Layout style={{ minHeight: "100vh", background: "linear-gradient(135deg, #020617 0%, #0f172a 45%, #082f49 100%)" }}>
+    <Layout className="auth-layout">
       <Content style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
-        <div style={{ width: "100%", maxWidth: 720 }}>
+        <div className="auth-shell" style={{ width: "100%", maxWidth: 720 }}>
           <Space direction="vertical" size={20} style={{ width: "100%" }}>
-            <Space direction="vertical" size={4} style={{ textAlign: "center", width: "100%" }}>
-              <Text style={{ color: "#34d399", fontWeight: 600 }}>BOLANOPE • Novo cadastro</Text>
+            <Space className="auth-heading" direction="vertical" size={4} style={{ textAlign: "center", width: "100%" }}>
+              <Text style={{ color: "#5eead4", fontWeight: 600 }}>BOLANOPE • Cadastro profissional</Text>
               <Title level={4} style={{ color: "#f8fafc", margin: 0 }}>
-                Crie seu perfil e comece a competir
+                Estruture seu perfil e evolua com dados
               </Title>
             </Space>
 
-            <AuthCard title="Crie sua conta" subtitle="Monte seu perfil de atleta e comece a competir nas organizações.">
+            <AuthCard title="Crie sua conta" subtitle="Cadastre-se para gerenciar partidas, posições e estatísticas com padrão profissional.">
               <Form<RegisterValues>
                 layout="vertical"
                 requiredMark={false}

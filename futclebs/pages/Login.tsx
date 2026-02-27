@@ -1,5 +1,5 @@
 import { AuthCard } from "@/components/auth/AuthCard";
-import { api } from "@/services/axios";
+import { api, getApiErrorMessage, unwrapApiResponse } from "@/services/axios";
 import { cleanPhone, formatPhone } from "@/utils/phone.utils";
 import { LockOutlined, PhoneOutlined } from "@ant-design/icons";
 import { Alert, Button, Form, Input, Layout, Space, Typography } from "antd";
@@ -12,6 +12,11 @@ const { Text, Title } = Typography;
 interface LoginValues {
   phone: string;
   password: string;
+}
+
+interface LoginResponse {
+  token: string;
+  player: unknown;
 }
 
 export default function Login() {
@@ -28,31 +33,31 @@ export default function Login() {
         ...values,
         phone: cleanPhone(values.phone),
       });
-      const { token, player } = response.data;
+      const { token, player } = unwrapApiResponse<LoginResponse>(response.data);
 
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(player));
       navigate("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.message || "Erro ao fazer login");
+      setError(getApiErrorMessage(err, "Erro ao fazer login"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Layout style={{ minHeight: "100vh", background: "linear-gradient(135deg, #020617 0%, #0f172a 45%, #082f49 100%)" }}>
+    <Layout className="auth-layout">
       <Content style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
-        <div style={{ width: "100%", maxWidth: 620 }}>
+        <div className="auth-shell" style={{ width: "100%", maxWidth: 700 }}>
           <Space direction="vertical" size={20} style={{ width: "100%" }}>
-            <Space direction="vertical" size={4} style={{ textAlign: "center", width: "100%" }}>
-              <Text style={{ color: "#34d399", fontWeight: 600 }}>BOLANOPE • Acesso rápido</Text>
+            <Space className="auth-heading" direction="vertical" size={4} style={{ textAlign: "center", width: "100%" }}>
+              <Text style={{ color: "#5eead4", fontWeight: 600 }}>BOLANOPE • Acesso profissional</Text>
               <Title level={4} style={{ color: "#f8fafc", margin: 0 }}>
-                Entre em segundos e acompanhe sua evolução
+                Gestão esportiva com performance e organização
               </Title>
             </Space>
 
-            <AuthCard title="Bem-vindo de volta" subtitle="Acesse sua conta para continuar sua evolução nas organizações.">
+            <AuthCard title="Bem-vindo de volta" subtitle="Acesse sua conta e acompanhe partidas, estatísticas e evolução em tempo real.">
               <Form<LoginValues>
                 layout="vertical"
                 onFinish={handleLogin}
@@ -81,7 +86,7 @@ export default function Login() {
                 </Form.Item>
 
                 <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                  Dica: use o mesmo telefone cadastrado na organização para localizar sua conta.
+                  Segurança reforçada e sincronização automática dos seus dados de atleta.
                 </Text>
 
                 {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}

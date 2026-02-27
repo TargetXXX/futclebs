@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+
 export const api = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: API_BASE_URL,
   headers: {
     Accept: "application/json",
   },
@@ -155,3 +157,41 @@ export type Session = {
     user: Player | null;
     token: string | null;
 }
+
+
+type ApiEnvelope<T> = {
+  success?: boolean;
+  message?: string;
+  data: T;
+};
+
+type ApiErrorPayload = {
+  message?: string;
+  errors?: Record<string, string[] | string>;
+};
+
+export const unwrapApiResponse = <T>(payload: T | ApiEnvelope<T>): T => {
+  if (payload && typeof payload === "object" && "data" in (payload as Record<string, unknown>)) {
+    return (payload as ApiEnvelope<T>).data;
+  }
+
+  return payload as T;
+};
+
+export const getApiErrorMessage = (error: any, fallback = "Não foi possível concluir a operação.") => {
+  const payload = error?.response?.data as ApiErrorPayload | undefined;
+
+  if (payload?.message) return payload.message;
+
+  const firstFieldError = payload?.errors && Object.values(payload.errors)[0];
+
+  if (Array.isArray(firstFieldError) && firstFieldError.length > 0) {
+    return firstFieldError[0];
+  }
+
+  if (typeof firstFieldError === "string") {
+    return firstFieldError;
+  }
+
+  return fallback;
+};
