@@ -9,6 +9,8 @@ interface Player {
   avatar?: string;
   primary_position?: string;
   secondary_position?: string;
+  is_admin?: boolean;
+  is_superadmin?: boolean;
 }
 
 interface AuthContextData {

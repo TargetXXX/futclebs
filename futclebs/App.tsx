@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import JoinOrganization from "./pages/JoinOrganization";
 import Register from "./pages/Register";
 import TournamentDetails from "./pages/TournamentDetails";
+import SuperAdminPanel from "./pages/SuperAdminPanel";
 
 function App() {
   return (
@@ -19,6 +20,16 @@ function App() {
           element={
             <PrivateRoute>
               <DashboardHome />
+            </PrivateRoute>
+          }
+        />
+
+
+        <Route
+          path="/dashboard/superadmin"
+          element={
+            <PrivateRoute>
+              <SuperAdminPanel />
             </PrivateRoute>
           }
         />

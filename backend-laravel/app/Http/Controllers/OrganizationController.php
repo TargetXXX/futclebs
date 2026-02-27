@@ -10,6 +10,7 @@ use App\Http\Resources\OrganizationResource;
 use App\Models\Organization;
 use App\Services\OrganizationSeasonService;
 use App\Services\OrganizationService;
+use App\Support\SuperAdmin;
 use Illuminate\Http\Request;
 
 class OrganizationController extends Controller
@@ -32,7 +33,13 @@ class OrganizationController extends Controller
 
     public function store(StoreOrganizationRequest $request)
     {
-        $organization = $this->service->create($request->validated(), $request->user());
+        $payload = $request->validated();
+
+        if (!SuperAdmin::check($request->user())) {
+            unset($payload['admin_player_id']);
+        }
+
+        $organization = $this->service->create($payload, $request->user());
         return response()->json($organization, 201);
     }
 

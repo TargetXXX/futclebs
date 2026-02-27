@@ -16,12 +16,19 @@ class OrganizationService
 
     public function create(array $data, Player $creator): Organization
     {
+        $adminPlayerId = isset($data['admin_player_id']) ? (int) $data['admin_player_id'] : $creator->id;
+        unset($data['admin_player_id']);
+
         $organization = Organization::create(array_merge([
             'seasons_enabled' => false,
             'season_duration_days' => null,
         ], $data));
 
-        $organization->players()->attach($creator->id, [
+        $adminPlayer = $adminPlayerId === $creator->id
+            ? $creator
+            : Player::query()->findOrFail($adminPlayerId);
+
+        $organization->players()->attach($adminPlayer->id, [
             'is_admin' => true,
             'velocidade' => 60,
             'finalizacao' => 60,
@@ -33,7 +40,7 @@ class OrganizationService
             'overall' => 60,
         ]);
 
-        $this->seasonService->upsertPlayerOverallSnapshot($organization, $creator, 60);
+        $this->seasonService->upsertPlayerOverallSnapshot($organization, $adminPlayer, 60);
 
         return $organization;
     }

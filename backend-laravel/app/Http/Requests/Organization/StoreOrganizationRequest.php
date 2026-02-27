@@ -10,6 +10,7 @@ class StoreOrganizationRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'password' => ['required', 'string', 'min:4'],
+            'admin_player_id' => ['nullable', 'integer', 'exists:players,id'],
         ];
     }
 }
