@@ -53,7 +53,7 @@ export const MiniStatsModal: React.FC<MiniStatsModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+      className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
       onClick={onClose}
     >
       <div

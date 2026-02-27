@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { supabase, PlayerStats } from '../../services/supabase.ts';
 import { FullRankingModal } from '../modals/player/FullRankingModal.tsx';
 import { calculateByPosition } from '@/utils/overall.utils.ts';
@@ -154,13 +155,14 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 pb-20">
+    <>
+      <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-20">
 
       {/* Banner da Temporada Ativa */}
       {activeSeason && <SeasonBanner season={activeSeason} />}
 
       {/* Seletor de posição */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="grid grid-cols-5 gap-1 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800">
         {(Object.keys(POSITION_CONFIG) as PositionFilter[]).map(pos => {
           const cfg = POSITION_CONFIG[pos];
           const active = positionFilter === pos;
@@ -168,14 +170,14 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
             <button
               key={pos}
               onClick={() => setPositionFilter(pos)}
-              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-2xl font-black text-[11px] uppercase tracking-wider whitespace-nowrap transition-all shrink-0 border ${
+              className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-xl font-black text-[9px] uppercase tracking-wide transition-all border ${
                 active
                   ? `bg-${cfg.color}-500/20 border-${cfg.color}-500/40 ${cfg.accent}`
-                  : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                  : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
-              <span>{cfg.emoji}</span>
-              {cfg.label}
+              <span className="text-sm leading-none">{cfg.emoji}</span>
+              <span className="leading-none mt-0.5">{cfg.label}</span>
             </button>
           );
         })}
@@ -243,16 +245,18 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
         />
       )}
 
-      <FullRankingModal
-        isOpen={isFullRankingOpen}
-        onClose={() => setIsFullRankingOpen(false)}
-        players={allPlayers}
-        onPlayerClick={(p) => {
-          setIsFullRankingOpen(false);
-          onPlayerClick(p);
-        }}
-      />
-    </div>
+      </div>
+
+      {ReactDOM.createPortal(
+        <FullRankingModal
+          isOpen={isFullRankingOpen}
+          onClose={() => setIsFullRankingOpen(false)}
+          players={allPlayers}
+          onPlayerClick={(p) => onPlayerClick(p)}
+        />,
+        document.body
+      )}
+    </>
   );
 };
 
