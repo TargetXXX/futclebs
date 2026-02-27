@@ -38,6 +38,28 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 }) => {
   const getTitle = () => (step === Step.REGISTER ? 'Criar Perfil' : 'FutClebs');
 
+  const getStepProgress = () => {
+    switch (step) {
+      case Step.PHONE_CHECK:
+        return 33;
+      case Step.LOGIN:
+        return 66;
+      case Step.REGISTER:
+        return 100;
+    }
+  };
+
+  const getStepHint = () => {
+    switch (step) {
+      case Step.PHONE_CHECK:
+        return 'Use seu número com DDD para validar seu acesso.';
+      case Step.LOGIN:
+        return 'Sua sessão será retomada automaticamente após autenticação.';
+      case Step.REGISTER:
+        return 'Complete os dados para habilitar ranking e estatísticas.';
+    }
+  };
+
   const getSubtitle = () => {
     switch (step) {
       case Step.PHONE_CHECK:
@@ -62,15 +84,31 @@ export const AuthForm: React.FC<AuthFormProps> = ({
 
   return (
     <div className="relative min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.20),transparent_45%),radial-gradient(circle_at_bottom,rgba(6,182,212,0.14),transparent_40%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(16,185,129,0.2),transparent_45%),radial-gradient(circle_at_bottom,rgba(6,182,212,0.14),transparent_40%)]" />
+      <div className="absolute inset-0 opacity-20 [background:linear-gradient(to_right,rgba(148,163,184,0.2)_1px,transparent_1px),linear-gradient(to_bottom,rgba(148,163,184,0.2)_1px,transparent_1px)] [background-size:28px_28px]" />
+
       <div className="relative w-full">
         <AuthCard title={getTitle()} subtitle={getSubtitle()}>
-          <div className="flex gap-2 mb-5">
-            <span className="text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 rounded-full px-3 py-1 font-bold">Seguro</span>
-            <span className="text-[10px] uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 rounded-full px-3 py-1 font-bold">Tempo real</span>
+          <div className="mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Progresso</p>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-300 font-black">{getStepProgress()}%</p>
+            </div>
+            <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-500"
+                style={{ width: `${getStepProgress()}%` }}
+              />
+            </div>
           </div>
 
-          <form onSubmit={getSubmitHandler()} className="space-y-4">
+          <div className="flex gap-2 mb-5 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 rounded-full px-3 py-1 font-bold">Seguro</span>
+            <span className="text-[10px] uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-400/30 rounded-full px-3 py-1 font-bold">Tempo real</span>
+            <span className="text-[10px] uppercase tracking-wider bg-violet-500/15 text-violet-300 border border-violet-400/30 rounded-full px-3 py-1 font-bold">Performance</span>
+          </div>
+
+          <form onSubmit={getSubmitHandler()} className="space-y-4 transition-all duration-300">
             {step === Step.PHONE_CHECK && (
               <Input
                 label="WhatsApp"
@@ -151,7 +189,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-black rounded-2xl transition-all shadow-lg shadow-emerald-600/20 active:scale-[0.99] disabled:opacity-60"
+              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:opacity-95 text-slate-950 font-black rounded-2xl transition-all shadow-lg shadow-emerald-600/20 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="w-6 h-6 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin mx-auto" />
@@ -162,8 +200,13 @@ export const AuthForm: React.FC<AuthFormProps> = ({
               )}
             </button>
 
+            <p className="text-[11px] text-slate-400 text-center leading-relaxed">{getStepHint()}</p>
+
             {error && (
-              <p className="text-red-400 text-center text-[10px] font-black uppercase tracking-widest bg-red-500/10 py-2 rounded-lg border border-red-500/20 animate-in fade-in slide-in-from-top-1">
+              <p
+                role="alert"
+                className="text-red-400 text-center text-[10px] font-black uppercase tracking-widest bg-red-500/10 py-2 rounded-lg border border-red-500/20 animate-in fade-in slide-in-from-top-1"
+              >
                 {error}
               </p>
             )}
