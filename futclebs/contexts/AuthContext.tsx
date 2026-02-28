@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = async () => {
     try {
       const { data } = await api.get("/auth/me");
-      setPlayer(data);
+      setPlayer(data?.data ?? data);
     } catch (error) {
       logout(); // Se falhar na API, desloga por segurança
     } finally {

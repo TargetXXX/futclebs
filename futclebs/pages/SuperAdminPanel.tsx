@@ -1,38 +1,50 @@
 import { UniversalNavbar } from "@/components/layout/UniversalNavbar";
 import { useAuth } from "@/contexts/AuthContext";
-import { api } from "@/services/axios";
+import { api, getApiErrorMessage } from "@/services/axios";
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Col,
   Divider,
+  Empty,
   Form,
   Input,
   InputNumber,
   Layout,
+  Popconfirm,
   Row,
+  Select,
   Space,
   Statistic,
   Switch,
+  Table,
   Tabs,
   Tag,
   Typography,
   message,
 } from "antd";
 import {
+  DeleteOutlined,
   LockOutlined,
   PlusCircleOutlined,
+  ReloadOutlined,
   SafetyCertificateOutlined,
   SearchOutlined,
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
+
+interface Organization {
+  id: number;
+  name: string;
+}
 
 interface CreateOrgForm {
   name: string;
@@ -41,62 +53,125 @@ interface CreateOrgForm {
   admin_player_id: number;
 }
 
-interface ResetPasswordForm {
-  player_id: number;
-  password: string;
-}
-
 interface PlayerLookupResult {
   id: number;
   name: string;
   phone?: string;
   email?: string;
   is_admin?: boolean;
+  is_active?: boolean;
+  organizations?: Organization[];
+  pivot?: { is_admin?: boolean };
+}
+
+interface UserForm {
+  password?: string;
 }
 
 export default function SuperAdminPanel() {
   const navigate = useNavigate();
   const { player } = useAuth();
-  const canAccess = useMemo(() => Boolean(player?.is_superadmin || player?.is_admin), [player?.is_superadmin, player?.is_admin]);
+  const canAccess = useMemo(() => Boolean(player?.is_superadmin), [player?.is_superadmin]);
 
   const [messageApi, contextHolder] = message.useMessage();
   const [createOrgForm] = Form.useForm<CreateOrgForm>();
-  const [resetPasswordForm] = Form.useForm<ResetPasswordForm>();
+  const [userPasswordForm] = Form.useForm<UserForm>();
 
   const [creatingOrg, setCreatingOrg] = useState(false);
-  const [updatingPassword, setUpdatingPassword] = useState(false);
-  const [lookingUpPlayer, setLookingUpPlayer] = useState(false);
   const [lookupPhone, setLookupPhone] = useState("");
   const [selectedAdmin, setSelectedAdmin] = useState<PlayerLookupResult | null>(null);
-  const [permissionPhone, setPermissionPhone] = useState("");
-  const [selectedPlayerPermission, setSelectedPlayerPermission] = useState<PlayerLookupResult | null>(null);
-  const [updatingPermission, setUpdatingPermission] = useState(false);
+  const [lookingUpPlayer, setLookingUpPlayer] = useState(false);
 
-  const onCreateOrganization = async (values: CreateOrgForm) => {
-    setCreatingOrg(true);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<number | null>(null);
+  const [orgPlayers, setOrgPlayers] = useState<PlayerLookupResult[]>([]);
+  const [orgPlayersSearch, setOrgPlayersSearch] = useState("");
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [loadingOrgPlayers, setLoadingOrgPlayers] = useState(false);
+  const [addingToOrg, setAddingToOrg] = useState(false);
+  const [managingOrgPlayerId, setManagingOrgPlayerId] = useState<number | null>(null);
+  const [addMemberPhone, setAddMemberPhone] = useState("");
+
+  const [users, setUsers] = useState<PlayerLookupResult[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userFilterName, setUserFilterName] = useState("");
+  const [userFilterPhone, setUserFilterPhone] = useState("");
+  const [selectedUser, setSelectedUser] = useState<PlayerLookupResult | null>(null);
+  const [savingUserPermission, setSavingUserPermission] = useState(false);
+  const [savingUserPassword, setSavingUserPassword] = useState(false);
+  const [savingUserStatus, setSavingUserStatus] = useState(false);
+
+  const fetchOrganizations = async () => {
+    setLoadingOrgs(true);
     try {
-      await api.post("/organizations", values);
-      messageApi.success("Organização criada com sucesso e admin atribuído.");
-      createOrgForm.resetFields(["name", "description", "password"]);
-    } catch {
-      messageApi.error("Não foi possível criar a organização.");
+      const { data } = await api.get("/organizations");
+      const payload = data?.data ?? data;
+      const parsed = Array.isArray(payload) ? payload : [];
+      setOrganizations(parsed);
+
+      if (!selectedOrganizationId && parsed.length > 0) {
+        setSelectedOrganizationId(parsed[0].id);
+      }
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Erro ao carregar organizações."));
     } finally {
-      setCreatingOrg(false);
+      setLoadingOrgs(false);
     }
   };
 
-  const onResetPlayerPassword = async (values: ResetPasswordForm) => {
-    setUpdatingPassword(true);
+  const fetchOrganizationPlayers = async (organizationId: number) => {
+    setLoadingOrgPlayers(true);
     try {
-      await api.put(`/players/${values.player_id}`, { password: values.password });
-      messageApi.success("Senha do jogador atualizada com sucesso.");
-      resetPasswordForm.resetFields();
-    } catch {
-      messageApi.error("Não foi possível atualizar a senha do jogador.");
+      const { data } = await api.get(`/organizations/${organizationId}/players`);
+      const payload = data?.data ?? data;
+      setOrgPlayers(Array.isArray(payload) ? payload : []);
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Erro ao carregar membros da organização."));
+      setOrgPlayers([]);
     } finally {
-      setUpdatingPassword(false);
+      setLoadingOrgPlayers(false);
     }
   };
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const { data } = await api.get("/players", {
+        params: {
+          name: userFilterName || undefined,
+          phone: userFilterPhone || undefined,
+          limit: 80,
+        },
+      });
+
+      const payload = data?.data ?? data;
+      const parsedUsers = Array.isArray(payload) ? payload : [];
+      setUsers(parsedUsers);
+
+      if (selectedUser) {
+        const refreshedSelectedUser = parsedUsers.find((item) => item.id === selectedUser.id);
+        if (refreshedSelectedUser) {
+          setSelectedUser(refreshedSelectedUser);
+        }
+      }
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Erro ao carregar usuários."));
+      setUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!canAccess) return;
+    fetchOrganizations();
+    fetchUsers();
+  }, [canAccess]);
+
+  useEffect(() => {
+    if (!selectedOrganizationId) return;
+    fetchOrganizationPlayers(selectedOrganizationId);
+  }, [selectedOrganizationId]);
 
   const searchPlayerByPhone = async () => {
     if (!lookupPhone.trim()) {
@@ -108,81 +183,168 @@ export default function SuperAdminPanel() {
     try {
       const { data } = await api.get(`/players/${lookupPhone.trim()}`);
       const payload = data?.data ?? data;
-      if (!payload?.id) {
-        messageApi.error("Jogador não encontrado.");
-        return;
-      }
-
-      const result: PlayerLookupResult = {
-        id: Number(payload.id),
-        name: payload.name,
-        email: payload.email,
-        phone: payload.phone,
-        is_admin: payload.is_admin,
-      };
-
-      setSelectedAdmin(result);
-      createOrgForm.setFieldValue("admin_player_id", result.id);
-      messageApi.success(`Admin selecionado: ${result.name} (#${result.id})`);
-    } catch {
-      messageApi.error("Falha ao buscar jogador por telefone.");
-    } finally {
-      setLookingUpPlayer(false);
-    }
-  };
-
-  const searchPlayerPermissionByPhone = async () => {
-    if (!permissionPhone.trim()) {
-      messageApi.warning("Informe um telefone para buscar o jogador.");
-      return;
-    }
-
-    setLookingUpPlayer(true);
-    try {
-      const { data } = await api.get(`/players/${permissionPhone.trim()}`);
-      const payload = data?.data ?? data;
-
-      if (!payload?.id) {
-        messageApi.error("Jogador não encontrado.");
-        return;
-      }
-
       const result: PlayerLookupResult = {
         id: Number(payload.id),
         name: payload.name,
         email: payload.email,
         phone: payload.phone,
         is_admin: Boolean(payload.is_admin),
+        is_active: Boolean(payload.is_active),
       };
-
-      setSelectedPlayerPermission(result);
-      messageApi.success(`Jogador carregado: ${result.name} (#${result.id})`);
-    } catch {
-      messageApi.error("Falha ao buscar jogador por telefone.");
+      setSelectedAdmin(result);
+      createOrgForm.setFieldValue("admin_player_id", result.id);
+      messageApi.success(`Admin selecionado: ${result.name} (#${result.id})`);
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Falha ao buscar jogador por telefone."));
     } finally {
       setLookingUpPlayer(false);
     }
   };
 
-  const onUpdateGlobalPermission = async () => {
-    if (!selectedPlayerPermission) {
-      messageApi.warning("Busque um jogador antes de atualizar a permissão.");
+  const onCreateOrganization = async (values: CreateOrgForm) => {
+    setCreatingOrg(true);
+    try {
+      await api.post("/organizations", values);
+      messageApi.success("Organização criada com sucesso e admin atribuído.");
+      createOrgForm.resetFields();
+      setSelectedAdmin(null);
+      setLookupPhone("");
+      await fetchOrganizations();
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Não foi possível criar a organização."));
+    } finally {
+      setCreatingOrg(false);
+    }
+  };
+
+  const addPlayerToOrganization = async () => {
+    if (!selectedOrganizationId) {
+      messageApi.warning("Selecione uma organização.");
       return;
     }
 
-    setUpdatingPermission(true);
+    if (!addMemberPhone.trim()) {
+      messageApi.warning("Informe um telefone para adicionar o usuário.");
+      return;
+    }
+
+    setAddingToOrg(true);
     try {
-      await api.put(`/players/${selectedPlayerPermission.id}`, {
-        is_admin: Boolean(selectedPlayerPermission.is_admin),
+      const playerResponse = await api.get(`/players/${addMemberPhone.trim()}`);
+      const targetPlayer = playerResponse.data?.data ?? playerResponse.data;
+
+      await api.post(`/organizations/${selectedOrganizationId}/players`, {
+        player_id: targetPlayer.id,
       });
 
-      messageApi.success("Permissão global atualizada com sucesso.");
-    } catch {
-      messageApi.error("Não foi possível atualizar a permissão global do jogador.");
+      messageApi.success("Usuário adicionado na organização com sucesso.");
+      setAddMemberPhone("");
+      await fetchOrganizationPlayers(selectedOrganizationId);
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Não foi possível adicionar o usuário na organização."));
     } finally {
-      setUpdatingPermission(false);
+      setAddingToOrg(false);
     }
   };
+
+  const updatePlayerRoleInOrganization = async (target: PlayerLookupResult, isAdmin: boolean) => {
+    if (!selectedOrganizationId) return;
+
+    setManagingOrgPlayerId(target.id);
+    try {
+      await api.put(`/organizations/${selectedOrganizationId}/players/${target.id}/role`, {
+        is_admin: isAdmin,
+      });
+      messageApi.success("Permissão na organização atualizada.");
+      await fetchOrganizationPlayers(selectedOrganizationId);
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Falha ao atualizar permissão na organização."));
+    } finally {
+      setManagingOrgPlayerId(null);
+    }
+  };
+
+  const removePlayerFromOrganization = async (target: PlayerLookupResult) => {
+    if (!selectedOrganizationId) return;
+
+    setManagingOrgPlayerId(target.id);
+    try {
+      await api.delete(`/organizations/${selectedOrganizationId}/players/${target.id}`);
+      messageApi.success("Usuário removido da organização.");
+      await fetchOrganizationPlayers(selectedOrganizationId);
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Não foi possível remover o usuário da organização."));
+    } finally {
+      setManagingOrgPlayerId(null);
+    }
+  };
+
+  const updateGlobalPermission = async (target: PlayerLookupResult, checked: boolean) => {
+    setSavingUserPermission(true);
+    try {
+      await api.put(`/players/${target.id}`, { is_admin: checked });
+      messageApi.success("Permissão global atualizada com sucesso.");
+      setSelectedUser((previous) => (previous ? { ...previous, is_admin: checked } : previous));
+      await fetchUsers();
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Falha ao atualizar permissão global."));
+    } finally {
+      setSavingUserPermission(false);
+    }
+  };
+
+  const updateGlobalActiveStatus = async (target: PlayerLookupResult, checked: boolean) => {
+    setSavingUserStatus(true);
+    try {
+      await api.put(`/players/${target.id}`, { is_active: checked });
+      messageApi.success("Status do usuário atualizado com sucesso.");
+      setSelectedUser((previous) => (previous ? { ...previous, is_active: checked } : previous));
+      await fetchUsers();
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Falha ao atualizar status do usuário."));
+    } finally {
+      setSavingUserStatus(false);
+    }
+  };
+
+  const updateUserPassword = async () => {
+    if (!selectedUser?.id) {
+      messageApi.warning("Selecione um usuário primeiro.");
+      return;
+    }
+
+    const values = await userPasswordForm.validateFields();
+    setSavingUserPassword(true);
+
+    try {
+      await api.put(`/players/${selectedUser.id}`, {
+        password: values.password,
+      });
+      messageApi.success("Senha atualizada com sucesso.");
+      userPasswordForm.resetFields();
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Não foi possível alterar a senha."));
+    } finally {
+      setSavingUserPassword(false);
+    }
+  };
+
+  const organizationStats = useMemo(() => {
+    const total = orgPlayers.length;
+    const admins = orgPlayers.filter((member) => member.pivot?.is_admin).length;
+    return { total, admins, members: Math.max(total - admins, 0) };
+  }, [orgPlayers]);
+
+  const filteredOrgPlayers = useMemo(() => {
+    const term = orgPlayersSearch.trim().toLowerCase();
+    if (!term) return orgPlayers;
+
+    return orgPlayers.filter((member) =>
+      [member.name, member.phone, member.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term)),
+    );
+  }, [orgPlayers, orgPlayersSearch]);
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;
 
@@ -191,7 +353,7 @@ export default function SuperAdminPanel() {
       {contextHolder}
       <UniversalNavbar />
 
-      <Content style={{ maxWidth: 1100, width: "100%", margin: "0 auto", padding: "20px 14px 40px" }}>
+      <Content style={{ maxWidth: 1180, width: "100%", margin: "0 auto", padding: "20px 14px 40px" }}>
         <Card
           style={{
             marginBottom: 16,
@@ -207,39 +369,30 @@ export default function SuperAdminPanel() {
             </Space>
             <Title level={2} style={{ margin: 0, color: "#fefce8" }}>Painel Super Admin</Title>
             <Text style={{ color: "#fde68a" }}>
-              Crie organizações com admin inicial e redefina senha de jogadores com segurança.
+              Acesso completo para gerir organizações, membros e usuários do sistema com mais rapidez e segurança.
             </Text>
             <Space wrap style={{ marginTop: 8 }}>
               <Button onClick={() => navigate("/dashboard")}>Voltar ao dashboard</Button>
-              <Button icon={<TeamOutlined />} onClick={() => navigate("/join")}>Ir para organizações</Button>
+              <Button icon={<ReloadOutlined />} onClick={() => { fetchOrganizations(); fetchUsers(); }}>
+                Recarregar dados
+              </Button>
             </Space>
           </Space>
         </Card>
 
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic title="Seu ID" value={player?.id ?? "-"} prefix={<UserOutlined />} />
-            </Card>
-          </Col>
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic title="Controle" value="Global" prefix={<SafetyCertificateOutlined />} />
-            </Card>
-          </Col>
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic title="Admin selecionado" value={selectedAdmin ? `#${selectedAdmin.id}` : "-"} prefix={<TeamOutlined />} />
-            </Card>
-          </Col>
+          <Col xs={24} md={6}><Card><Statistic title="Seu ID" value={player?.id ?? "-"} prefix={<UserOutlined />} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Organizações" value={organizations.length} prefix={<TeamOutlined />} loading={loadingOrgs} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Membros (org atual)" value={organizationStats.total} prefix={<TeamOutlined />} loading={loadingOrgPlayers} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Usuários listados" value={users.length} prefix={<SafetyCertificateOutlined />} loading={loadingUsers} /></Card></Col>
         </Row>
 
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16, borderRadius: 14 }}
-          message="Dica de operação"
-          description="Você pode buscar o admin por telefone para preencher automaticamente o ID no cadastro da organização."
+          message="Funcionalidades disponíveis"
+          description="Criação de organização com admin, gestão de membros por organização (incluindo promoção/rebaixamento), administração global de usuários (permissões, status e senha)."
         />
 
         <Tabs
@@ -247,40 +400,25 @@ export default function SuperAdminPanel() {
           items={[
             {
               key: "org",
-              label: (
-                <Space>
-                  <PlusCircleOutlined />
-                  Criar organização
-                </Space>
-              ),
+              label: <Space><PlusCircleOutlined />Criar organização</Space>,
               children: (
                 <Card style={{ borderRadius: 16 }}>
                   <Title level={4}>Criar organização e atribuir admin</Title>
-                  <Text type="secondary">Defina o jogador responsável pela administração inicial da organização.</Text>
-
+                  <Text type="secondary">Busque o admin por telefone para preencher automaticamente o campo de ID.</Text>
                   <Divider />
 
                   <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                    <Text strong>Buscar jogador por telefone</Text>
+                    <Text strong>Buscar admin por telefone</Text>
                     <Space.Compact style={{ width: "100%" }}>
-                      <Input
-                        value={lookupPhone}
-                        onChange={(event) => setLookupPhone(event.target.value)}
-                        placeholder="Ex: 11999998888"
-                      />
-                      <Button icon={<SearchOutlined />} loading={lookingUpPlayer} onClick={searchPlayerByPhone}>
-                        Buscar
-                      </Button>
+                      <Input value={lookupPhone} onChange={(event) => setLookupPhone(event.target.value)} placeholder="Ex: 11999998888" />
+                      <Button icon={<SearchOutlined />} loading={lookingUpPlayer} onClick={searchPlayerByPhone}>Buscar</Button>
                     </Space.Compact>
 
                     {selectedAdmin && (
                       <Card size="small" style={{ borderRadius: 12, background: "#f8fafc" }}>
-                        <Space direction="vertical" size={0}>
-                          <Text strong>{selectedAdmin.name}</Text>
-                          <Text type="secondary">ID: {selectedAdmin.id}</Text>
-                          <Text type="secondary">Telefone: {selectedAdmin.phone || "-"}</Text>
-                          <Text type="secondary">Email: {selectedAdmin.email || "-"}</Text>
-                        </Space>
+                        <Text strong>{selectedAdmin.name}</Text>
+                        <br />
+                        <Text type="secondary">ID: {selectedAdmin.id} • Tel: {selectedAdmin.phone || "-"}</Text>
                       </Card>
                     )}
                   </Space>
@@ -300,113 +438,185 @@ export default function SuperAdminPanel() {
                       <Input.Password placeholder="Senha interna da organização" />
                     </Form.Item>
 
-                    <Form.Item
-                      name="admin_player_id"
-                      label="ID do jogador admin"
-                      rules={[{ required: true, message: "Informe o ID do admin" }]}
-                    >
-                      <InputNumber min={1} style={{ width: "100%" }} placeholder="Ex: 23" />
+                    <Form.Item name="admin_player_id" label="ID do admin" rules={[{ required: true, message: "Informe o ID do admin" }]}>
+                      <InputNumber min={1} style={{ width: "100%" }} />
                     </Form.Item>
 
-                    <Button htmlType="submit" type="primary" loading={creatingOrg} icon={<PlusCircleOutlined />}>
-                      Criar organização
-                    </Button>
+                    <Button htmlType="submit" type="primary" loading={creatingOrg} icon={<PlusCircleOutlined />}>Criar organização</Button>
                   </Form>
                 </Card>
               ),
             },
             {
-              key: "permissions",
-              label: (
-                <Space>
-                  <SafetyCertificateOutlined />
-                  Permissões globais
-                </Space>
-              ),
+              key: "organization-members",
+              label: <Space><TeamOutlined />Administrar organizações</Space>,
               children: (
                 <Card style={{ borderRadius: 16 }}>
-                  <Title level={4}>Transformar usuário em superadmin global</Title>
-                  <Text type="secondary">Ative ou desative o perfil de administrador global do sistema por telefone.</Text>
-
+                  <Title level={4}>Gerenciar membros e admins por organização</Title>
+                  <Text type="secondary">Você é admin de todas as organizações automaticamente (perfil superadmin).</Text>
                   <Divider />
 
-                  <Space direction="vertical" style={{ width: "100%" }} size={8}>
-                    <Text strong>Buscar jogador por telefone</Text>
-                    <Space.Compact style={{ width: "100%" }}>
-                      <Input
-                        value={permissionPhone}
-                        onChange={(event) => setPermissionPhone(event.target.value)}
-                        placeholder="Ex: 11999998888"
+                  <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+                    <Col xs={24} lg={8}>
+                      <Select
+                        showSearch
+                        placeholder="Selecione a organização"
+                        value={selectedOrganizationId ?? undefined}
+                        onChange={(value) => setSelectedOrganizationId(value)}
+                        loading={loadingOrgs}
+                        options={organizations.map((organization) => ({ value: organization.id, label: `#${organization.id} - ${organization.name}` }))}
                       />
-                      <Button icon={<SearchOutlined />} loading={lookingUpPlayer} onClick={searchPlayerPermissionByPhone}>
-                        Buscar
-                      </Button>
-                    </Space.Compact>
+                    </Col>
+                    <Col xs={24} lg={8}>
+                      <Input value={orgPlayersSearch} onChange={(event) => setOrgPlayersSearch(event.target.value)} placeholder="Buscar membro por nome, telefone ou e-mail" />
+                    </Col>
+                    <Col xs={24} lg={8}>
+                      <Space.Compact style={{ width: "100%" }}>
+                        <Input value={addMemberPhone} onChange={(event) => setAddMemberPhone(event.target.value)} placeholder="Telefone para adicionar" />
+                        <Button type="primary" icon={<PlusCircleOutlined />} loading={addingToOrg} onClick={addPlayerToOrganization}>Adicionar</Button>
+                      </Space.Compact>
+                    </Col>
+                  </Row>
 
-                    {selectedPlayerPermission && (
-                      <Card size="small" style={{ borderRadius: 12, background: "#f8fafc" }}>
-                        <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                          <div>
-                            <Text strong>{selectedPlayerPermission.name}</Text>
-                            <br />
-                            <Text type="secondary">ID: {selectedPlayerPermission.id}</Text>
-                            <br />
-                            <Text type="secondary">Telefone: {selectedPlayerPermission.phone || "-"}</Text>
-                          </div>
-
-                          <Space align="center">
-                            <Text>Superadmin global</Text>
-                            <Switch
-                              checked={Boolean(selectedPlayerPermission.is_admin)}
-                              onChange={(checked) =>
-                                setSelectedPlayerPermission((prev) => (prev ? { ...prev, is_admin: checked } : prev))
-                              }
-                            />
-                          </Space>
-
-                          <Button
-                            type="primary"
-                            icon={<SafetyCertificateOutlined />}
-                            loading={updatingPermission}
-                            onClick={onUpdateGlobalPermission}
-                          >
-                            Salvar permissão
-                          </Button>
-                        </Space>
-                      </Card>
-                    )}
+                  <Space size={10} style={{ marginBottom: 10 }} wrap>
+                    <Badge count={organizationStats.admins} style={{ backgroundColor: "#f59e0b" }} />
+                    <Text>Admins</Text>
+                    <Badge count={organizationStats.members} style={{ backgroundColor: "#3b82f6" }} />
+                    <Text>Membros</Text>
+                    <Badge count={filteredOrgPlayers.length} style={{ backgroundColor: "#10b981" }} />
+                    <Text>Exibidos</Text>
                   </Space>
+
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    loading={loadingOrgPlayers}
+                    dataSource={filteredOrgPlayers}
+                    locale={{ emptyText: <Empty description="Nenhum membro encontrado" /> }}
+                    pagination={{ pageSize: 8 }}
+                    columns={[
+                      { title: "ID", dataIndex: "id", width: 90 },
+                      { title: "Nome", dataIndex: "name" },
+                      { title: "Telefone", dataIndex: "phone", render: (value: string | undefined) => value || "-" },
+                      {
+                        title: "Admin org",
+                        render: (_, record) => (
+                          <Switch
+                            checked={Boolean(record.pivot?.is_admin)}
+                            loading={managingOrgPlayerId === record.id}
+                            onChange={(checked) => updatePlayerRoleInOrganization(record, checked)}
+                          />
+                        ),
+                      },
+                      {
+                        title: "Ações",
+                        width: 120,
+                        render: (_, record) => (
+                          <Popconfirm
+                            title="Remover usuário da organização?"
+                            description="Essa ação remove o vínculo deste usuário com a organização selecionada."
+                            okText="Remover"
+                            cancelText="Cancelar"
+                            onConfirm={() => removePlayerFromOrganization(record)}
+                          >
+                            <Button danger icon={<DeleteOutlined />} loading={managingOrgPlayerId === record.id}>
+                              Remover
+                            </Button>
+                          </Popconfirm>
+                        ),
+                      },
+                    ]}
+                  />
                 </Card>
               ),
             },
             {
-              key: "password",
-              label: (
-                <Space>
-                  <LockOutlined />
-                  Alterar senha
-                </Space>
-              ),
+              key: "users",
+              label: <Space><SafetyCertificateOutlined />Administrar usuários</Space>,
               children: (
                 <Card style={{ borderRadius: 16 }}>
-                  <Title level={4}>Alterar senha de jogador específico</Title>
-                  <Text type="secondary">Use com cuidado. A senha será alterada imediatamente.</Text>
+                  <Title level={4}>Gerenciamento global de usuários</Title>
+                  <Text type="secondary">Pesquise usuários para ajustar permissão global, status de acesso e redefinir senha.</Text>
+                  <Divider />
+
+                  <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+                    <Col xs={24} md={10}>
+                      <Input value={userFilterName} onChange={(event) => setUserFilterName(event.target.value)} placeholder="Filtrar por nome" />
+                    </Col>
+                    <Col xs={24} md={10}>
+                      <Input value={userFilterPhone} onChange={(event) => setUserFilterPhone(event.target.value)} placeholder="Filtrar por telefone" />
+                    </Col>
+                    <Col xs={24} md={4}>
+                      <Button block type="primary" icon={<SearchOutlined />} loading={loadingUsers} onClick={fetchUsers}>Buscar</Button>
+                    </Col>
+                  </Row>
+
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    dataSource={users}
+                    loading={loadingUsers}
+                    pagination={{ pageSize: 8 }}
+                    rowClassName={(record) => (selectedUser?.id === record.id ? "ant-table-row-selected" : "")}
+                    onRow={(record) => ({
+                      onClick: () => setSelectedUser(record),
+                    })}
+                    columns={[
+                      { title: "ID", dataIndex: "id", width: 80 },
+                      { title: "Nome", dataIndex: "name" },
+                      { title: "Telefone", dataIndex: "phone", render: (value: string | undefined) => value || "-" },
+                      {
+                        title: "Status",
+                        render: (_, record) => (
+                          <Tag color={record.is_active ? "green" : "red"}>{record.is_active ? "ATIVO" : "INATIVO"}</Tag>
+                        ),
+                      },
+                      {
+                        title: "Permissão global",
+                        render: (_, record) => (
+                          <Tag color={record.is_admin ? "gold" : "default"}>{record.is_admin ? "SUPERADMIN" : "USUÁRIO"}</Tag>
+                        ),
+                      },
+                    ]}
+                  />
 
                   <Divider />
 
-                  <Form form={resetPasswordForm} layout="vertical" onFinish={onResetPlayerPassword} requiredMark={false}>
-                    <Form.Item name="player_id" label="ID do jogador" rules={[{ required: true, message: "Informe o ID do jogador" }]}>
-                      <InputNumber min={1} style={{ width: "100%" }} placeholder="Ex: 101" />
-                    </Form.Item>
+                  {selectedUser ? (
+                    <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                      <Text strong>Usuário selecionado: {selectedUser.name} (#{selectedUser.id})</Text>
+                      <Text type="secondary">Organizações vinculadas: {selectedUser.organizations?.length ?? 0}</Text>
 
-                    <Form.Item name="password" label="Nova senha" rules={[{ required: true, min: 6, message: "Mínimo de 6 caracteres" }]}>
-                      <Input.Password placeholder="Nova senha do jogador" />
-                    </Form.Item>
+                      <Space align="center" wrap>
+                        <Text>Superadmin global</Text>
+                        <Switch
+                          checked={Boolean(selectedUser.is_admin)}
+                          loading={savingUserPermission}
+                          onChange={(checked) => updateGlobalPermission(selectedUser, checked)}
+                        />
+                      </Space>
 
-                    <Button htmlType="submit" type="primary" loading={updatingPassword} icon={<LockOutlined />}>
-                      Atualizar senha
-                    </Button>
-                  </Form>
+                      <Space align="center" wrap>
+                        <Text>Usuário ativo</Text>
+                        <Switch
+                          checked={Boolean(selectedUser.is_active)}
+                          loading={savingUserStatus}
+                          onChange={(checked) => updateGlobalActiveStatus(selectedUser, checked)}
+                        />
+                      </Space>
+
+                      <Form layout="vertical" form={userPasswordForm} requiredMark={false}>
+                        <Form.Item name="password" label="Nova senha" rules={[{ required: true, min: 6, message: "Mínimo de 6 caracteres" }]}>
+                          <Input.Password placeholder="Informe nova senha" />
+                        </Form.Item>
+                        <Button type="primary" icon={<LockOutlined />} loading={savingUserPassword} onClick={updateUserPassword}>
+                          Redefinir senha
+                        </Button>
+                      </Form>
+                    </Space>
+                  ) : (
+                    <Text type="secondary">Clique em um usuário da tabela para administrar permissões, status e senha.</Text>
+                  )}
                 </Card>
               ),
             },

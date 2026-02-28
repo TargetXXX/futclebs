@@ -63,6 +63,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::get('/players/{phone}', [PlayerController::class, 'get']);
+    Route::get('/players', [PlayerController::class, 'index']);
     Route::put('/players/{player}', [PlayerController::class, 'update']);
     Route::delete('/players/{player}', [PlayerController::class, 'destroy']);
 
@@ -204,6 +205,12 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete(
                 '/organizations/{organization}/players/{player}',
                 [OrganizationPlayerController::class, 'destroy']
+            );
+
+            // Atualizar permissão (admin/membro) do player na organização
+            Route::put(
+                '/organizations/{organization}/players/{player}/role',
+                [OrganizationPlayerController::class, 'updateRole']
             );
 
             // Atualizar stats do player na organização

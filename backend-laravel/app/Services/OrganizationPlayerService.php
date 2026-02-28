@@ -36,6 +36,33 @@ class OrganizationPlayerService
         $this->seasonService->upsertPlayerOverallSnapshot($organization, $player, 60);
     }
 
+    public function updateRole(Organization $organization, Player $player, bool $isAdmin): void
+    {
+        $membership = $organization->players()->where('player_id', $player->id);
+
+        if (!$membership->exists()) {
+            throw ValidationException::withMessages([
+                'player' => ['Player não pertence a esta organização.']
+            ]);
+        }
+
+        $isCurrentAdmin = (bool) $membership->wherePivot('is_admin', true)->exists();
+
+        if ($isCurrentAdmin && !$isAdmin) {
+            $adminsCount = $organization->players()->wherePivot('is_admin', true)->count();
+
+            if ($adminsCount <= 1) {
+                throw ValidationException::withMessages([
+                    'organization' => ['Não é possível remover o último admin da organização.']
+                ]);
+            }
+        }
+
+        $organization->players()->updateExistingPivot($player->id, [
+            'is_admin' => $isAdmin,
+        ]);
+    }
+
     public function removePlayer(Organization $organization, Player $player): void
     {
         if (!$organization->players()->where('player_id', $player->id)->exists()) {
