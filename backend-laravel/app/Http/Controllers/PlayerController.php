@@ -54,6 +54,10 @@ class PlayerController extends Controller
             abort(403, 'Somente superadmins podem alterar privilégios globais.');
         }
 
+        if (array_key_exists('is_active', $data) && !SuperAdmin::check($request->user())) {
+            abort(403, 'Somente superadmins podem alterar o status ativo de usuários.');
+        }
+
         $player = $this->playerService->update(
             $player,
             $data

@@ -3,14 +3,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { api, getApiErrorMessage } from "@/services/axios";
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Col,
   Divider,
+  Empty,
   Form,
   Input,
   InputNumber,
   Layout,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -56,6 +59,8 @@ interface PlayerLookupResult {
   phone?: string;
   email?: string;
   is_admin?: boolean;
+  is_active?: boolean;
+  organizations?: Organization[];
   pivot?: { is_admin?: boolean };
 }
 
@@ -80,6 +85,7 @@ export default function SuperAdminPanel() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<number | null>(null);
   const [orgPlayers, setOrgPlayers] = useState<PlayerLookupResult[]>([]);
+  const [orgPlayersSearch, setOrgPlayersSearch] = useState("");
   const [loadingOrgs, setLoadingOrgs] = useState(false);
   const [loadingOrgPlayers, setLoadingOrgPlayers] = useState(false);
   const [addingToOrg, setAddingToOrg] = useState(false);
@@ -93,6 +99,7 @@ export default function SuperAdminPanel() {
   const [selectedUser, setSelectedUser] = useState<PlayerLookupResult | null>(null);
   const [savingUserPermission, setSavingUserPermission] = useState(false);
   const [savingUserPassword, setSavingUserPassword] = useState(false);
+  const [savingUserStatus, setSavingUserStatus] = useState(false);
 
   const fetchOrganizations = async () => {
     setLoadingOrgs(true);
@@ -133,12 +140,20 @@ export default function SuperAdminPanel() {
         params: {
           name: userFilterName || undefined,
           phone: userFilterPhone || undefined,
-          limit: 50,
+          limit: 80,
         },
       });
 
       const payload = data?.data ?? data;
-      setUsers(Array.isArray(payload) ? payload : []);
+      const parsedUsers = Array.isArray(payload) ? payload : [];
+      setUsers(parsedUsers);
+
+      if (selectedUser) {
+        const refreshedSelectedUser = parsedUsers.find((item) => item.id === selectedUser.id);
+        if (refreshedSelectedUser) {
+          setSelectedUser(refreshedSelectedUser);
+        }
+      }
     } catch (error) {
       messageApi.error(getApiErrorMessage(error, "Erro ao carregar usuários."));
       setUsers([]);
@@ -174,6 +189,7 @@ export default function SuperAdminPanel() {
         email: payload.email,
         phone: payload.phone,
         is_admin: Boolean(payload.is_admin),
+        is_active: Boolean(payload.is_active),
       };
       setSelectedAdmin(result);
       createOrgForm.setFieldValue("admin_player_id", result.id);
@@ -277,6 +293,20 @@ export default function SuperAdminPanel() {
     }
   };
 
+  const updateGlobalActiveStatus = async (target: PlayerLookupResult, checked: boolean) => {
+    setSavingUserStatus(true);
+    try {
+      await api.put(`/players/${target.id}`, { is_active: checked });
+      messageApi.success("Status do usuário atualizado com sucesso.");
+      setSelectedUser((previous) => (previous ? { ...previous, is_active: checked } : previous));
+      await fetchUsers();
+    } catch (error) {
+      messageApi.error(getApiErrorMessage(error, "Falha ao atualizar status do usuário."));
+    } finally {
+      setSavingUserStatus(false);
+    }
+  };
+
   const updateUserPassword = async () => {
     if (!selectedUser?.id) {
       messageApi.warning("Selecione um usuário primeiro.");
@@ -298,6 +328,23 @@ export default function SuperAdminPanel() {
       setSavingUserPassword(false);
     }
   };
+
+  const organizationStats = useMemo(() => {
+    const total = orgPlayers.length;
+    const admins = orgPlayers.filter((member) => member.pivot?.is_admin).length;
+    return { total, admins, members: Math.max(total - admins, 0) };
+  }, [orgPlayers]);
+
+  const filteredOrgPlayers = useMemo(() => {
+    const term = orgPlayersSearch.trim().toLowerCase();
+    if (!term) return orgPlayers;
+
+    return orgPlayers.filter((member) =>
+      [member.name, member.phone, member.email]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(term)),
+    );
+  }, [orgPlayers, orgPlayersSearch]);
 
   if (!canAccess) return <Navigate to="/dashboard" replace />;
 
@@ -322,7 +369,7 @@ export default function SuperAdminPanel() {
             </Space>
             <Title level={2} style={{ margin: 0, color: "#fefce8" }}>Painel Super Admin</Title>
             <Text style={{ color: "#fde68a" }}>
-              Gerencie organizações e usuários globalmente. Superadmins têm acesso administrativo em todas as organizações automaticamente.
+              Acesso completo para gerir organizações, membros e usuários do sistema com mais rapidez e segurança.
             </Text>
             <Space wrap style={{ marginTop: 8 }}>
               <Button onClick={() => navigate("/dashboard")}>Voltar ao dashboard</Button>
@@ -334,17 +381,18 @@ export default function SuperAdminPanel() {
         </Card>
 
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} md={8}><Card><Statistic title="Seu ID" value={player?.id ?? "-"} prefix={<UserOutlined />} /></Card></Col>
-          <Col xs={24} md={8}><Card><Statistic title="Organizações" value={organizations.length} prefix={<TeamOutlined />} loading={loadingOrgs} /></Card></Col>
-          <Col xs={24} md={8}><Card><Statistic title="Usuários listados" value={users.length} prefix={<SafetyCertificateOutlined />} loading={loadingUsers} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Seu ID" value={player?.id ?? "-"} prefix={<UserOutlined />} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Organizações" value={organizations.length} prefix={<TeamOutlined />} loading={loadingOrgs} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Membros (org atual)" value={organizationStats.total} prefix={<TeamOutlined />} loading={loadingOrgPlayers} /></Card></Col>
+          <Col xs={24} md={6}><Card><Statistic title="Usuários listados" value={users.length} prefix={<SafetyCertificateOutlined />} loading={loadingUsers} /></Card></Col>
         </Row>
 
         <Alert
           type="info"
           showIcon
           style={{ marginBottom: 16, borderRadius: 14 }}
-          message="Funcionalidades do painel"
-          description="Criação de organização com admin, gerenciamento de membros por organização, troca de papéis de admin e administração de usuários (permissões globais e senha)."
+          message="Funcionalidades disponíveis"
+          description="Criação de organização com admin, gestão de membros por organização (incluindo promoção/rebaixamento), administração global de usuários (permissões, status e senha)."
         />
 
         <Tabs
@@ -356,7 +404,7 @@ export default function SuperAdminPanel() {
               children: (
                 <Card style={{ borderRadius: 16 }}>
                   <Title level={4}>Criar organização e atribuir admin</Title>
-                  <Text type="secondary">Busque o usuário por telefone para preencher o ID de admin automaticamente.</Text>
+                  <Text type="secondary">Busque o admin por telefone para preencher automaticamente o campo de ID.</Text>
                   <Divider />
 
                   <Space direction="vertical" style={{ width: "100%" }} size={8}>
@@ -405,61 +453,80 @@ export default function SuperAdminPanel() {
               children: (
                 <Card style={{ borderRadius: 16 }}>
                   <Title level={4}>Gerenciar membros e admins por organização</Title>
-                  <Text type="secondary">Como superadmin você já é admin de todas as organizações e pode administrar membros diretamente.</Text>
+                  <Text type="secondary">Você é admin de todas as organizações automaticamente (perfil superadmin).</Text>
                   <Divider />
 
-                  <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                    <Select
-                      showSearch
-                      placeholder="Selecione a organização"
-                      value={selectedOrganizationId ?? undefined}
-                      onChange={(value) => setSelectedOrganizationId(value)}
-                      loading={loadingOrgs}
-                      options={organizations.map((organization) => ({ value: organization.id, label: `#${organization.id} - ${organization.name}` }))}
-                    />
+                  <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
+                    <Col xs={24} lg={8}>
+                      <Select
+                        showSearch
+                        placeholder="Selecione a organização"
+                        value={selectedOrganizationId ?? undefined}
+                        onChange={(value) => setSelectedOrganizationId(value)}
+                        loading={loadingOrgs}
+                        options={organizations.map((organization) => ({ value: organization.id, label: `#${organization.id} - ${organization.name}` }))}
+                      />
+                    </Col>
+                    <Col xs={24} lg={8}>
+                      <Input value={orgPlayersSearch} onChange={(event) => setOrgPlayersSearch(event.target.value)} placeholder="Buscar membro por nome, telefone ou e-mail" />
+                    </Col>
+                    <Col xs={24} lg={8}>
+                      <Space.Compact style={{ width: "100%" }}>
+                        <Input value={addMemberPhone} onChange={(event) => setAddMemberPhone(event.target.value)} placeholder="Telefone para adicionar" />
+                        <Button type="primary" icon={<PlusCircleOutlined />} loading={addingToOrg} onClick={addPlayerToOrganization}>Adicionar</Button>
+                      </Space.Compact>
+                    </Col>
+                  </Row>
 
-                    <Space.Compact style={{ width: "100%" }}>
-                      <Input value={addMemberPhone} onChange={(event) => setAddMemberPhone(event.target.value)} placeholder="Telefone do usuário para adicionar" />
-                      <Button type="primary" icon={<PlusCircleOutlined />} loading={addingToOrg} onClick={addPlayerToOrganization}>Adicionar membro</Button>
-                    </Space.Compact>
+                  <Space size={10} style={{ marginBottom: 10 }} wrap>
+                    <Badge count={organizationStats.admins} style={{ backgroundColor: "#f59e0b" }} />
+                    <Text>Admins</Text>
+                    <Badge count={organizationStats.members} style={{ backgroundColor: "#3b82f6" }} />
+                    <Text>Membros</Text>
+                    <Badge count={filteredOrgPlayers.length} style={{ backgroundColor: "#10b981" }} />
+                    <Text>Exibidos</Text>
+                  </Space>
 
-                    <Table
-                      size="small"
-                      rowKey="id"
-                      loading={loadingOrgPlayers}
-                      dataSource={orgPlayers}
-                      pagination={{ pageSize: 8 }}
-                      columns={[
-                        { title: "ID", dataIndex: "id", width: 90 },
-                        { title: "Nome", dataIndex: "name" },
-                        { title: "Telefone", dataIndex: "phone", render: (value: string | undefined) => value || "-" },
-                        {
-                          title: "Admin org",
-                          render: (_, record) => (
-                            <Switch
-                              checked={Boolean(record.pivot?.is_admin)}
-                              loading={managingOrgPlayerId === record.id}
-                              onChange={(checked) => updatePlayerRoleInOrganization(record, checked)}
-                            />
-                          ),
-                        },
-                        {
-                          title: "Ações",
-                          width: 120,
-                          render: (_, record) => (
-                            <Button
-                              danger
-                              icon={<DeleteOutlined />}
-                              loading={managingOrgPlayerId === record.id}
-                              onClick={() => removePlayerFromOrganization(record)}
-                            >
+                  <Table
+                    size="small"
+                    rowKey="id"
+                    loading={loadingOrgPlayers}
+                    dataSource={filteredOrgPlayers}
+                    locale={{ emptyText: <Empty description="Nenhum membro encontrado" /> }}
+                    pagination={{ pageSize: 8 }}
+                    columns={[
+                      { title: "ID", dataIndex: "id", width: 90 },
+                      { title: "Nome", dataIndex: "name" },
+                      { title: "Telefone", dataIndex: "phone", render: (value: string | undefined) => value || "-" },
+                      {
+                        title: "Admin org",
+                        render: (_, record) => (
+                          <Switch
+                            checked={Boolean(record.pivot?.is_admin)}
+                            loading={managingOrgPlayerId === record.id}
+                            onChange={(checked) => updatePlayerRoleInOrganization(record, checked)}
+                          />
+                        ),
+                      },
+                      {
+                        title: "Ações",
+                        width: 120,
+                        render: (_, record) => (
+                          <Popconfirm
+                            title="Remover usuário da organização?"
+                            description="Essa ação remove o vínculo deste usuário com a organização selecionada."
+                            okText="Remover"
+                            cancelText="Cancelar"
+                            onConfirm={() => removePlayerFromOrganization(record)}
+                          >
+                            <Button danger icon={<DeleteOutlined />} loading={managingOrgPlayerId === record.id}>
                               Remover
                             </Button>
-                          ),
-                        },
-                      ]}
-                    />
-                  </Space>
+                          </Popconfirm>
+                        ),
+                      },
+                    ]}
+                  />
                 </Card>
               ),
             },
@@ -469,7 +536,7 @@ export default function SuperAdminPanel() {
               children: (
                 <Card style={{ borderRadius: 16 }}>
                   <Title level={4}>Gerenciamento global de usuários</Title>
-                  <Text type="secondary">Pesquise usuários para ajustar permissão global e redefinir senha.</Text>
+                  <Text type="secondary">Pesquise usuários para ajustar permissão global, status de acesso e redefinir senha.</Text>
                   <Divider />
 
                   <Row gutter={[12, 12]} style={{ marginBottom: 12 }}>
@@ -490,6 +557,7 @@ export default function SuperAdminPanel() {
                     dataSource={users}
                     loading={loadingUsers}
                     pagination={{ pageSize: 8 }}
+                    rowClassName={(record) => (selectedUser?.id === record.id ? "ant-table-row-selected" : "")}
                     onRow={(record) => ({
                       onClick: () => setSelectedUser(record),
                     })}
@@ -497,6 +565,12 @@ export default function SuperAdminPanel() {
                       { title: "ID", dataIndex: "id", width: 80 },
                       { title: "Nome", dataIndex: "name" },
                       { title: "Telefone", dataIndex: "phone", render: (value: string | undefined) => value || "-" },
+                      {
+                        title: "Status",
+                        render: (_, record) => (
+                          <Tag color={record.is_active ? "green" : "red"}>{record.is_active ? "ATIVO" : "INATIVO"}</Tag>
+                        ),
+                      },
                       {
                         title: "Permissão global",
                         render: (_, record) => (
@@ -511,13 +585,23 @@ export default function SuperAdminPanel() {
                   {selectedUser ? (
                     <Space direction="vertical" size={10} style={{ width: "100%" }}>
                       <Text strong>Usuário selecionado: {selectedUser.name} (#{selectedUser.id})</Text>
+                      <Text type="secondary">Organizações vinculadas: {selectedUser.organizations?.length ?? 0}</Text>
 
-                      <Space align="center">
+                      <Space align="center" wrap>
                         <Text>Superadmin global</Text>
                         <Switch
                           checked={Boolean(selectedUser.is_admin)}
                           loading={savingUserPermission}
                           onChange={(checked) => updateGlobalPermission(selectedUser, checked)}
+                        />
+                      </Space>
+
+                      <Space align="center" wrap>
+                        <Text>Usuário ativo</Text>
+                        <Switch
+                          checked={Boolean(selectedUser.is_active)}
+                          loading={savingUserStatus}
+                          onChange={(checked) => updateGlobalActiveStatus(selectedUser, checked)}
                         />
                       </Space>
 
@@ -531,7 +615,7 @@ export default function SuperAdminPanel() {
                       </Form>
                     </Space>
                   ) : (
-                    <Text type="secondary">Clique em um usuário da tabela para administrar permissões e senha.</Text>
+                    <Text type="secondary">Clique em um usuário da tabela para administrar permissões, status e senha.</Text>
                   )}
                 </Card>
               ),

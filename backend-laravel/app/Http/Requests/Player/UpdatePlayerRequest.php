@@ -28,6 +28,7 @@ class UpdatePlayerRequest extends FormRequest
 
             'avatar' => ['sometimes', 'string'],
             'is_admin' => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
         ];
     }
 
@@ -47,6 +48,7 @@ class UpdatePlayerRequest extends FormRequest
 
             'avatar.string' => 'Avatar inválido.',
             'is_admin.boolean' => 'O valor de admin global deve ser verdadeiro ou falso.',
+            'is_active.boolean' => 'O valor de ativo deve ser verdadeiro ou falso.',
 
         ];
     }
