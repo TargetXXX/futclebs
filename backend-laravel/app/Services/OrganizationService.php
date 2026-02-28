@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Organization;
 use App\Models\Player;
+use App\Support\SuperAdmin;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -47,6 +48,30 @@ class OrganizationService
 
     public function listForUser(Player $player)
     {
+        if (SuperAdmin::check($player)) {
+            return Organization::query()
+                ->get()
+                ->map(function ($organization) {
+                    return [
+                        'id' => $organization->id,
+                        'name' => $organization->name,
+                        'description' => $organization->description,
+                        'is_admin' => true,
+                        'seasons_enabled' => (bool) $organization->seasons_enabled,
+                        'season_duration_days' => $organization->season_duration_days,
+                        'stats' => [
+                            'velocidade' => 60,
+                            'finalizacao' => 60,
+                            'passe' => 60,
+                            'drible' => 60,
+                            'defesa' => 60,
+                            'fisico' => 60,
+                            'overall' => 60,
+                        ],
+                    ];
+                });
+        }
+
         return $player->organizations()
             ->withPivot([
                 'is_admin',

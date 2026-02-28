@@ -288,7 +288,7 @@ export default function DashboardHome() {
           </Flex>
         </Card>
 
-        {(currentUser?.is_superadmin || currentUser?.is_admin) && (
+        {currentUser?.is_superadmin && (
           <Card
             style={{
               marginBottom: 18,
@@ -312,7 +312,7 @@ export default function DashboardHome() {
               </Space>
               <Space>
                 <Tag color="gold">SUPERADMIN</Tag>
-                <Button type="primary" onClick={() => navigate("/dashboard")}>Visão geral</Button>
+                <Button type="primary" onClick={() => navigate("/dashboard/superadmin")}>Abrir painel</Button>
               </Space>
             </Flex>
           </Card>

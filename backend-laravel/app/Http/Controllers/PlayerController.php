@@ -7,12 +7,32 @@ use App\Http\Resources\PlayerResource;
 use App\Models\Player;
 use App\Services\PlayerService;
 use App\Support\SuperAdmin;
+use Illuminate\Http\Request;
 
 class PlayerController extends Controller
 {
     public function __construct(
         private PlayerService $playerService
     ) {
+    }
+
+    public function index(Request $request)
+    {
+        if (!SuperAdmin::check($request->user())) {
+            abort(403, 'Acesso permitido apenas para superadmin.');
+        }
+
+        $limit = min(max((int) $request->integer('limit', 20), 1), 100);
+
+        $players = Player::query()
+            ->with('organizations')
+            ->when($request->filled('phone'), fn ($query) => $query->where('phone', 'like', '%' . $request->string('phone') . '%'))
+            ->when($request->filled('name'), fn ($query) => $query->where('name', 'like', '%' . $request->string('name') . '%'))
+            ->orderBy('name')
+            ->limit($limit)
+            ->get();
+
+        return PlayerResource::collection($players);
     }
 
     public function get(string $phone)
