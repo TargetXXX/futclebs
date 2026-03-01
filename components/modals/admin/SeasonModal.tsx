@@ -4,6 +4,7 @@ import { SUPER_ADMIN_IDS } from '@/constants/app.constants';
 import { ConfirmationModal } from '../shared/ConfirmationModal';
 import { calculateByPosition } from '@/utils/overall.utils';
 
+
 interface Season {
   id: string;
   name: string;
@@ -39,6 +40,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
   const [editName, setEditName] = useState('');
   const [editStart, setEditStart] = useState('');
   const [editEnd, setEditEnd] = useState('');
+
 
   const isSuperAdmin = SUPER_ADMIN_IDS.includes(currentUserId);
 
@@ -295,6 +297,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
       setActionLoading(false);
     }
   };
+
 
   const formatDate = (iso: string) =>
     new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });

@@ -156,6 +156,7 @@ const App: React.FC = () => {
           onOpenUserManagement={() => modals.openModal('isAdminUserManagementOpen')}
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
           onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
+          onOpenWhatsAppConfig={() => modals.openModal('isWhatsAppConfigOpen')}
           onLogout={handleLogout}
         />
 
