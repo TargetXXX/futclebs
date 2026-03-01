@@ -16,6 +16,7 @@ import { VotingStatusModal } from './modals/match/VotingStatusModal.tsx';
 import { PlayerPositionSelectorModal } from './modals/player/PlayerPositionSelectorModal.tsx';
 import { AvatarModal } from './modals/player/AvatarModal.component.tsx';
 import { SeasonModal } from './modals/admin/SeasonModal.tsx';
+import { WhatsAppConfigModal } from './modals/admin/WhatsAppConfigModal.tsx';
 
 interface AllModalsProps {
   modals: any;
@@ -217,6 +218,13 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isSeasonModalOpen}
         onClose={() => modals.closeModal('isSeasonModalOpen')}
         currentUserId={userProfile.id}
+      />
+
+      {/* WhatsApp Config Modal */}
+      <WhatsAppConfigModal
+        isOpen={modals.isWhatsAppConfigOpen}
+        onClose={() => modals.closeModal('isWhatsAppConfigOpen')}
+        isSuperAdmin={isSuperAdmin}
       />
     </>
   );
