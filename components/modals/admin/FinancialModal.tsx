@@ -83,6 +83,13 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'pending'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [monthlyStats, setMonthlyStats] = useState<{
+    month: string;
+    totalPending: number;
+    totalPaid: number;
+    countPending: number;
+    countPaid: number;
+  } | null>(null);
 
   const [newTx, setNewTx] = useState({
     player_id: '',
@@ -95,15 +102,38 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: pls }, { data: txs }, { data: smry }, { data: cfg }] = await Promise.all([
+      const currentMonth = new Date().toISOString().slice(0, 7); // '2026-03'
+
+      const [{ data: pls }, { data: txs }, { data: smry }, { data: cfg }, { data: monthTxs }] = await Promise.all([
         supabase.from('players').select('*').order('name'),
         supabase.from('financial_transactions').select('*, players(name)').order('created_at', { ascending: false }).limit(50),
         supabase.from('financial_summary').select('*').order('name'),
         supabase.from('financial_config').select('*'),
+        supabase.from('financial_transactions')
+          .select('amount, paid, player_id')
+          .eq('reference_month', currentMonth)
+          .eq('type', 'monthly_fee'),
       ]);
+
       setPlayers(pls || []);
       setTransactions(txs || []);
       setSummary(smry || []);
+
+      // Monta stats do mês atual
+      const mt = monthTxs || [];
+      const pendingTxs = mt.filter(t => !t.paid && Number(t.amount) > 0);
+      const paidTxs    = mt.filter(t =>  t.paid && Number(t.amount) > 0);
+      // Conta jogadores únicos
+      const pendingPlayers = new Set(pendingTxs.map(t => t.player_id)).size;
+      const paidPlayers    = new Set(paidTxs.map(t => t.player_id)).size;
+      setMonthlyStats({
+        month:        currentMonth,
+        totalPending: pendingTxs.reduce((a, t) => a + Number(t.amount), 0),
+        totalPaid:    paidTxs.reduce((a, t) => a + Number(t.amount), 0),
+        countPending: pendingPlayers,
+        countPaid:    paidPlayers,
+      });
+
       // Ordena por dia da semana
       const sorted = (cfg || []).sort((a, b) => DAY_ORDER.indexOf(a.day_of_week) - DAY_ORDER.indexOf(b.day_of_week));
       setFinancialConfig(sorted);
@@ -750,6 +780,52 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
                 </div>
               ) : (
                 <div className="space-y-3">
+
+                  {/* ── Overview do mês atual ── */}
+                  {monthlyStats && (
+                    <div className="bg-slate-800/30 border border-slate-700/30 rounded-2xl p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          📅 {new Date(monthlyStats.month + '-01T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                        </p>
+                        <span className="text-[9px] font-black uppercase text-slate-600">mês atual</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Pendentes */}
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+                          <p className="text-red-400 text-[9px] font-black uppercase tracking-wider mb-1">⏳ Pendentes</p>
+                          <p className="text-white font-black text-base leading-none">{formatCurrency(monthlyStats.totalPending)}</p>
+                          <p className="text-red-400/70 text-[10px] mt-1 font-bold">{monthlyStats.countPending} jogador{monthlyStats.countPending !== 1 ? 'es' : ''}</p>
+                        </div>
+                        {/* Pagos */}
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-center">
+                          <p className="text-emerald-400 text-[9px] font-black uppercase tracking-wider mb-1">✅ Pagos</p>
+                          <p className="text-white font-black text-base leading-none">{formatCurrency(monthlyStats.totalPaid)}</p>
+                          <p className="text-emerald-400/70 text-[10px] mt-1 font-bold">{monthlyStats.countPaid} jogador{monthlyStats.countPaid !== 1 ? 'es' : ''}</p>
+                        </div>
+                      </div>
+                      {/* Barra de progresso */}
+                      {(monthlyStats.totalPending + monthlyStats.totalPaid) > 0 && (() => {
+                        const total = monthlyStats.totalPending + monthlyStats.totalPaid;
+                        const pct   = Math.round((monthlyStats.totalPaid / total) * 100);
+                        return (
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[9px] font-black uppercase text-slate-500">
+                              <span>progresso de pagamento</span>
+                              <span className={pct === 100 ? 'text-emerald-400' : pct >= 50 ? 'text-yellow-400' : 'text-red-400'}>{pct}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   <input type="text" placeholder="Buscar jogador..." value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="w-full bg-slate-800/50 border border-slate-700/50 rounded-2xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 placeholder:text-slate-600" />
