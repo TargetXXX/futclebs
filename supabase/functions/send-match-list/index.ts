@@ -64,21 +64,23 @@ Deno.serve(async (req) => {
 
     // 2. Data atual BRT (UTC-3)
     const nowBRT = new Date(new Date().getTime() - 3 * 60 * 60 * 1000);
-    const today = nowBRT.toISOString().split('T')[0];
+    const today  = nowBRT.toISOString().split('T')[0]; // 'YYYY-MM-DD' já em BRT
 
-    // Dia da semana em BRT (0=dom, 1=seg, 2=ter, 3=qua, 4=qui, 5=sex, 6=sab)
-    const dowBRT = nowBRT.getUTCDay();
+    // Dia da semana — extrai da string 'today' (BRT garantido) para evitar erro de virada UTC
+    const [ty, tm, td] = today.split('-').map(Number);
+    const dowBRT = new Date(ty, tm - 1, td).getDay(); // 0=dom 1=seg ... 6=sab
+    console.log('⏰ today BRT:', today, '| dowBRT:', dowBRT);
     const dowMap: Record<number, string> = {
-      0: 'send_sunday',
-      1: 'send_monday',
-      2: 'send_tuesday',
-      3: 'send_wednesday',
-      4: 'send_thursday',
-      5: 'send_friday',
-      6: 'send_saturday',
+      0: 'send_sunday',  1: 'send_monday',  2: 'send_tuesday',
+      3: 'send_wednesday', 4: 'send_thursday', 5: 'send_friday', 6: 'send_saturday',
+    };
+    const dayKeyMap: Record<number, string> = {
+      0: 'sunday', 1: 'monday',  2: 'tuesday',
+      3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday',
     };
     const todayField = dowMap[dowBRT];
-    console.log('📅 Data BRT:', today, '| Dia:', dowBRT, '| Campo:', todayField);
+    const todayKey   = dayKeyMap[dowBRT]; // ex: 'monday'
+    console.log('📅 BRT:', today, '| dowBRT:', dowBRT, '| todayKey:', todayKey);
 
     // 3. Busca grupos ativos para envio
     let groupsQuery = supabase.from('whatsapp_groups').select('*').eq('is_active', true);
@@ -102,7 +104,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 4. Busca jogadores (da partida mais recente/aberta)
+    // Dia da lista — se o grupo tem um único dia configurado, usa ele
+    // Assim o grupo de quinta sempre monta lista de quinta, mesmo chamado na segunda
+    const getDayKeyForGroup = (group: any): string => {
+      const dayFields = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+      const sendFields = ['send_monday','send_tuesday','send_wednesday','send_thursday','send_friday','send_saturday','send_sunday'];
+      const activeDays = dayFields.filter((_, i) => group[sendFields[i]] === true);
+      if (activeDays.length === 1) return activeDays[0]; // grupo tem só um dia → usa ele
+      return todayKey; // grupo multi-dia ou sem dia → usa o dia atual
+    };
+
+    // 4. Busca partida — prioriza hoje ou a próxima futura aberta
     const { data: matches } = await supabase
       .from('matches')
       .select('id, match_date, status')
@@ -112,101 +124,46 @@ Deno.serve(async (req) => {
       .limit(1);
 
     let match: any = matches?.[0] ?? null;
-    if (!match) {
-      const { data: latest } = await supabase
-        .from('matches')
-        .select('id, match_date, status')
-        .order('match_date', { ascending: false })
-        .limit(1);
-      match = latest?.[0] ?? null;
-    }
-    console.log('⚽ Partida:', match ? match.id : 'nenhuma');
 
-    let registrations: any[] = [];
+    // Se não achou partida aberta futura, não usa partida passada — usa null
+    // (a lista será montada pelo dia do envio)
+    console.log('⚽ Partida:', match ? `${match.id} | ${match.match_date}` : 'nenhuma aberta hoje/futura — usando dia do envio');
+
+    // Confirmados na partida (para marcar ✅ e goleiros)
+    let confirmedIds  = new Set<string>();
+    let goalkeepers: any[] = [];
+    let confirmed_all: any[] = [];
+    let waiting: any[] = [];
+
     if (match) {
       const { data: regs } = await supabase
         .from('match_players')
         .select('player_id, status, players(name, is_goalkeeper, subscription_type, match_days)')
         .eq('match_id', match.id)
         .order('created_at', { ascending: true });
-      registrations = regs || [];
+
+      confirmed_all = (regs || []).filter((r: any) => r.status === 'confirmed');
+      waiting       = (regs || []).filter((r: any) => r.status === 'waiting');
+      confirmedIds  = new Set(confirmed_all.map((r: any) => r.player_id));
+      goalkeepers   = confirmed_all.filter((r: any) => r.players?.is_goalkeeper === true);
     }
 
-    const confirmed    = registrations.filter((r: any) => r.status === 'confirmed');
-    const waiting      = registrations.filter((r: any) => r.status === 'waiting');
-    const goalkeepers  = confirmed.filter((r: any) => r.players?.is_goalkeeper === true);
-    const fieldPlayers = confirmed.filter((r: any) => !r.players?.is_goalkeeper);
+    // 5. Busca todos jogadores mensalistas uma vez (filtra por dia dentro do loop)
+    const { data: allPlayers } = await supabase
+      .from('players')
+      .select('id, name, is_goalkeeper, subscription_type, match_days')
+      .eq('is_goalkeeper', false)
+      .neq('subscription_type', 'daily')
+      .neq('subscription_type', 'goalkeeper')
+      .order('name', { ascending: true });
 
-    // Dia da semana da PARTIDA (não do envio)
-    const matchDate   = match ? new Date(match.match_date + 'T12:00:00') : nowBRT;
-    const matchDowMap: Record<number, string> = {
-      0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
-      4: 'thursday', 5: 'friday', 6: 'saturday',
-    };
-    const matchDayKey = matchDowMap[matchDate.getUTCDay()]; // ex: 'monday' ou 'thursday'
+    const MAX_GOALKEEPERS = 2;
+    const MAX_FIELD       = 12;
 
-    // Classifica cada jogador de campo pelo seu grupo
-    const getPlayerLabel = (player: any): string => {
-      const sub   = player?.subscription_type ?? 'monthly_both';
-      const days: string[] = player?.match_days ?? [];
-
-      if (sub === 'goalkeeper')   return 'GOLEIRO';
-      if (sub === 'daily')        return 'DIÁRIO';
-
-      // Mensalista: verifica se o dia da partida está nos dias do jogador
-      if (days.includes(matchDayKey)) {
-        if (matchDayKey === 'monday')   return 'MENSAL SEG';
-        if (matchDayKey === 'thursday') return 'MENSAL QUI';
-        // outros dias configuráveis
-        return 'MENSAL';
-      }
-
-      // Mensalista jogando fora do dia → trata como diário
-      return 'DIÁRIO';
-    };
-
-    // 5. Monta mensagem com data atual BRT
     const matchDateFormatted = nowBRT.toLocaleDateString('pt-BR', {
       weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
       timeZone: 'America/Sao_Paulo',
     });
-
-    const MAX_GOALKEEPERS = 2;
-    const MAX_FIELD = 12;
-
-    const buildMessage = (groupName: string) => {
-      const lines: string[] = [];
-      lines.push(`⚽ *LISTA FutClebs* ⚽`);
-      lines.push(`📅 ${matchDateFormatted.charAt(0).toUpperCase() + matchDateFormatted.slice(1)}`);
-      lines.push(``);
-
-      // Goleiros
-      for (let i = 0; i < MAX_GOALKEEPERS; i++) {
-        const gk  = goalkeepers[i];
-        lines.push(`*${i + 1} - GOLEIRO* - ${gk ? `✅ ${gk.players.name}` : ``}`);
-      }
-      lines.push(``);
-
-      // Jogadores de campo com label dinâmico
-      for (let i = 0; i < MAX_FIELD; i++) {
-        const r   = fieldPlayers[i];
-        const num = i + 3;
-        const label = r ? getPlayerLabel(r.players) : 'MENSAL';
-        lines.push(`*${num} - ${label}* - ${r ? `✅ ${r.players.name}` : ``}`);
-      }
-
-      if (waiting.length > 0) {
-        lines.push(``);
-        lines.push(`⏳ *LISTA DE ESPERA:*`);
-        waiting.forEach((r: any, i: number) => {
-          lines.push(`${i + 1}. ${r.players?.name || 'Desconhecido'}`);
-        });
-      }
-
-      lines.push(``);
-      lines.push(`_Gerado pelo FutClebs_ 🤖`);
-      return lines.join('\n');
-    };
 
     // 6. Envia para cada grupo
     const results: any[] = [];
@@ -218,7 +175,76 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const message = buildMessage(group.name);
+      // Dia correto para este grupo
+      const groupDayKey = getDayKeyForGroup(group);
+      console.log(`📆 Grupo "${group.name}" → dia: ${groupDayKey}`);
+
+      // Mensalistas do dia do grupo
+      const mensalistasDodia = (allPlayers || []).filter((p: any) => {
+        const days: string[] = Array.isArray(p.match_days) ? p.match_days : [];
+        if (days.length > 0) return days.includes(groupDayKey);
+        if (p.subscription_type === 'monthly_both') return groupDayKey === 'monday' || groupDayKey === 'thursday';
+        return p.subscription_type === 'monthly_one';
+      });
+
+      console.log(`📋 mensalistasDodia [${groupDayKey}]:`, mensalistasDodia.length, JSON.stringify(mensalistasDodia.map((p: any) => p.name)));
+
+      const labelMensal = groupDayKey === 'monday'    ? 'MENSAL SEG'
+                        : groupDayKey === 'tuesday'   ? 'MENSAL TER'
+                        : groupDayKey === 'wednesday' ? 'MENSAL QUA'
+                        : groupDayKey === 'thursday'  ? 'MENSAL QUI'
+                        : groupDayKey === 'friday'    ? 'MENSAL SEX'
+                        : groupDayKey === 'saturday'  ? 'MENSAL SAB'
+                        : 'MENSAL';
+
+      // Diários confirmados para este grupo (filtra pelo dia do grupo)
+      const diariosDoGrupo = match ? confirmed_all.filter((r: any) => {
+        if (r.players?.is_goalkeeper) return false;
+        const sub  = r.players?.subscription_type ?? 'monthly_both';
+        const days: string[] = Array.isArray(r.players?.match_days) ? r.players.match_days : [];
+        if (sub === 'daily') return true;
+        if (days.length > 0) return !days.includes(groupDayKey);
+        return sub === 'monthly_both' ? !(groupDayKey === 'monday' || groupDayKey === 'thursday') : false;
+      }) : [];
+
+      const vagasParaDiarios = Math.max(0, MAX_FIELD - mensalistasDodia.length);
+      const diariosNaLista   = diariosDoGrupo.slice(0, vagasParaDiarios);
+      const diariosEspera    = diariosDoGrupo.slice(vagasParaDiarios);
+
+      const lines: string[] = [];
+      lines.push(`⚽ *LISTA FutClebs* ⚽`);
+      lines.push(`📅 ${matchDateFormatted.charAt(0).toUpperCase() + matchDateFormatted.slice(1)}`);
+      lines.push(``);
+
+      for (let i = 0; i < MAX_GOALKEEPERS; i++) {
+        const gk = goalkeepers[i];
+        lines.push(`*${i + 1} - GOLEIRO* - ${gk ? `✅ ${gk.players.name}` : ``}`);
+      }
+      lines.push(``);
+
+      let num = 3;
+      for (const p of mensalistasDodia) {
+        const confirmou = confirmedIds.has(p.id);
+        lines.push(`*${num} - ${labelMensal}* - ${confirmou ? `✅ ${p.name}` : `${p.name} (a confirmar)`}`);
+        num++;
+      }
+      for (let i = 0; i < vagasParaDiarios; i++) {
+        const d = diariosNaLista[i];
+        lines.push(`*${num} - DIÁRIO* - ${d ? `✅ ${d.players.name}` : ``}`);
+        num++;
+      }
+
+      const waitingAll = [...diariosEspera, ...waiting];
+      if (waitingAll.length > 0) {
+        lines.push(``);
+        lines.push(`⏳ *LISTA DE ESPERA:*`);
+        waitingAll.forEach((r: any, i: number) => {
+          lines.push(`${i + 1}. ${r.players?.name || 'Desconhecido'}`);
+        });
+      }
+      lines.push(``);
+      lines.push(`_Gerado pelo FutClebs_ 🤖`);
+      const message = lines.join('\n');
       const evolutionEndpoint = `${config.evolution_api_url}/message/sendText/${config.instance_name}`;
       console.log(`📲 Enviando para "${group.name}" (${group.group_jid})`);
 
@@ -271,7 +297,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: allOk,
         groups_sent: results.length,
-        players_confirmed: confirmed.length,
+        day: todayKey,
         triggered_by: triggeredBy,
         results,
       }),
