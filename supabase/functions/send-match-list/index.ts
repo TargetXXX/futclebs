@@ -126,16 +126,44 @@ Deno.serve(async (req) => {
     if (match) {
       const { data: regs } = await supabase
         .from('match_players')
-        .select('player_id, status, players(name, is_goalkeeper)')
+        .select('player_id, status, players(name, is_goalkeeper, subscription_type, match_days)')
         .eq('match_id', match.id)
         .order('created_at', { ascending: true });
       registrations = regs || [];
     }
 
-    const confirmed   = registrations.filter((r: any) => r.status === 'confirmed');
-    const waiting     = registrations.filter((r: any) => r.status === 'waiting');
+    const confirmed    = registrations.filter((r: any) => r.status === 'confirmed');
+    const waiting      = registrations.filter((r: any) => r.status === 'waiting');
     const goalkeepers  = confirmed.filter((r: any) => r.players?.is_goalkeeper === true);
     const fieldPlayers = confirmed.filter((r: any) => !r.players?.is_goalkeeper);
+
+    // Dia da semana da PARTIDA (não do envio)
+    const matchDate   = match ? new Date(match.match_date + 'T12:00:00') : nowBRT;
+    const matchDowMap: Record<number, string> = {
+      0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
+      4: 'thursday', 5: 'friday', 6: 'saturday',
+    };
+    const matchDayKey = matchDowMap[matchDate.getUTCDay()]; // ex: 'monday' ou 'thursday'
+
+    // Classifica cada jogador de campo pelo seu grupo
+    const getPlayerLabel = (player: any): string => {
+      const sub   = player?.subscription_type ?? 'monthly_both';
+      const days: string[] = player?.match_days ?? [];
+
+      if (sub === 'goalkeeper')   return 'GOLEIRO';
+      if (sub === 'daily')        return 'DIÁRIO';
+
+      // Mensalista: verifica se o dia da partida está nos dias do jogador
+      if (days.includes(matchDayKey)) {
+        if (matchDayKey === 'monday')   return 'MENSAL SEG';
+        if (matchDayKey === 'thursday') return 'MENSAL QUI';
+        // outros dias configuráveis
+        return 'MENSAL';
+      }
+
+      // Mensalista jogando fora do dia → trata como diário
+      return 'DIÁRIO';
+    };
 
     // 5. Monta mensagem com data atual BRT
     const matchDateFormatted = nowBRT.toLocaleDateString('pt-BR', {
@@ -152,16 +180,19 @@ Deno.serve(async (req) => {
       lines.push(`📅 ${matchDateFormatted.charAt(0).toUpperCase() + matchDateFormatted.slice(1)}`);
       lines.push(``);
 
+      // Goleiros
       for (let i = 0; i < MAX_GOALKEEPERS; i++) {
-        const gk = goalkeepers[i];
+        const gk  = goalkeepers[i];
         lines.push(`*${i + 1} - GOLEIRO* - ${gk ? `✅ ${gk.players.name}` : ``}`);
       }
       lines.push(``);
 
+      // Jogadores de campo com label dinâmico
       for (let i = 0; i < MAX_FIELD; i++) {
-        const p   = fieldPlayers[i];
+        const r   = fieldPlayers[i];
         const num = i + 3;
-        lines.push(`*${num} - MENSAL* - ${p ? `✅ ${p.players.name}` : ``}`);
+        const label = r ? getPlayerLabel(r.players) : 'MENSAL';
+        lines.push(`*${num} - ${label}* - ${r ? `✅ ${r.players.name}` : ``}`);
       }
 
       if (waiting.length > 0) {

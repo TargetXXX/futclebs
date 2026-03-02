@@ -14,6 +14,7 @@ import { useFormState } from './hooks/useFormState.hook';
 import { useAuthHandlers } from './hooks/useAuthHandlers.hook';
 import { useMatchFilters } from './hooks/useMatchFilters.hook';
 import { useDashboardHandlers } from './hooks/useDashboardHandlers.hook';
+import { usePlayerDebt } from './hooks/usePlayerDebt.hook';
 
 // Components
 import { AuthForm } from './components/auth/AuthForm.component';
@@ -31,6 +32,9 @@ const App: React.FC = () => {
   const { matches, fetchMatches, deleteMatch } = useMatches();
   const modals = useModals();
   const avatar = useAvatar(session?.user?.id || '', () => fetchUserProfile(session?.user?.id || ''));
+
+  // Débito do jogador logado
+  const { debt } = usePlayerDebt(userProfile?.id ?? null);
 
   // UI State
   const ui = useUIState();
@@ -169,6 +173,25 @@ const App: React.FC = () => {
           onOpenAvatar={() => modals.openModal('isAvatarModalOpen')}
           onOpenPositions={() => modals.openModal('isPositionSelectorOpen')}
         />
+
+        {/* Banner de cobrança pendente */}
+        {debt && (
+          <div className={`flex items-center gap-3 p-4 rounded-2xl border ${debt.isOverdue ? 'bg-red-500/10 border-red-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+            <span className="text-2xl shrink-0">{debt.isOverdue ? '🚨' : '💰'}</span>
+            <div className="flex-1 min-w-0">
+              <p className={`font-black text-sm ${debt.isOverdue ? 'text-red-400' : 'text-yellow-400'}`}>
+                {debt.isOverdue ? 'Mensalidade Vencida!' : 'Mensalidade Pendente'}
+              </p>
+              <p className="text-slate-400 text-[11px] font-bold mt-0.5">
+                {debt.pendingCount} cobrança{debt.pendingCount > 1 ? 's' : ''} · {Number(debt.pendingAmount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {debt.nextDueDate && !debt.isOverdue && (
+                  <> · vence {new Date(debt.nextDueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</>
+                )}
+                {debt.isOverdue && ' · entre em contato com o organizador'}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <TabsNavigation
