@@ -157,6 +157,7 @@ const App: React.FC = () => {
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
           onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
           onOpenWhatsAppConfig={() => modals.openModal('isWhatsAppConfigOpen')}
+          onOpenFinancial={() => modals.openModal('isFinancialModalOpen')}
           onLogout={handleLogout}
         />
 

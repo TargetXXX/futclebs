@@ -6,6 +6,44 @@ export const supabaseAnonKey = process.env.SUPABASE_ANON_KEY as string;
  
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export type SubscriptionType = 'monthly_both' | 'monthly_one' | 'daily' | 'goalkeeper';
+
+export const SUBSCRIPTION_LABELS: Record<SubscriptionType, string> = {
+  monthly_both: 'Mensal (Seg + Qui)',
+  monthly_one:  'Mensal (1 jogo)',
+  daily:        'Diária',
+  goalkeeper:   '🧤 Goleiro (Isento)',
+};
+
+export const SUBSCRIPTION_VALUES: Record<SubscriptionType, number | number[]> = {
+  monthly_both: [45, 35],
+  monthly_one:  45,
+  daily:        15,
+  goalkeeper:   0,
+};
+
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export const DAY_LABELS: Record<DayOfWeek, string> = {
+  monday:    'Segunda',
+  tuesday:   'Terça',
+  wednesday: 'Quarta',
+  thursday:  'Quinta',
+  friday:    'Sexta',
+  saturday:  'Sábado',
+  sunday:    'Domingo',
+};
+
+export const DAY_SHORT: Record<DayOfWeek, string> = {
+  monday:    'Seg',
+  tuesday:   'Ter',
+  wednesday: 'Qua',
+  thursday:  'Qui',
+  friday:    'Sex',
+  saturday:  'Sáb',
+  sunday:    'Dom',
+};
+
 export type Player = {
   id: string;
   name: string;
@@ -14,6 +52,8 @@ export type Player = {
   is_goalkeeper: boolean;
   avatar: string | null;
   positions: String[] | null;
+  subscription_type: SubscriptionType;
+  match_days: DayOfWeek[];
   created_at: string;
 };
 
