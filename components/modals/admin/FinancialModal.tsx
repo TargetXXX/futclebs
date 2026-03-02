@@ -223,6 +223,53 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
     await loadAll();
   };
 
+  const handleCopyCoop = async () => {
+    const month = new Date().toISOString().slice(0, 7);
+    const monthLabel = new Date(month + '-01T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const mensalistas = summary.filter(s =>
+      s.subscription_type !== 'daily' && s.subscription_type !== 'goalkeeper'
+    ).sort((a, b) => a.name.localeCompare(b.name));
+
+    const pagos    = mensalistas.filter(s => Number(s.pending_amount) === 0);
+    const devendo  = mensalistas.filter(s => Number(s.pending_amount) >  0);
+
+    const lines: string[] = [];
+    lines.push(`💰 *CAIXA FutClebs* — ${monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)}`);
+    lines.push('');
+
+    if (pagos.length > 0) {
+      lines.push(`✅ *PAGOS (${pagos.length}):*`);
+      pagos.forEach((s, i) => {
+        lines.push(`${i + 1}. ${s.name} — ${formatCurrency(Number(s.paid_amount))}`);
+      });
+    }
+
+    lines.push('');
+
+    if (devendo.length > 0) {
+      lines.push(`⏳ *PENDENTES (${devendo.length}):*`);
+      devendo.forEach((s, i) => {
+        const vencido = s.is_overdue ? ' ⚠️' : '';
+        lines.push(`${i + 1}. ${s.name} — ${formatCurrency(Number(s.pending_amount))}${vencido}`);
+      });
+    }
+
+    lines.push('');
+    lines.push(`📊 *Total recebido: ${formatCurrency(pagos.reduce((a, s) => a + Number(s.paid_amount), 0))}*`);
+    lines.push(`📊 *Total pendente: ${formatCurrency(devendo.reduce((a, s) => a + Number(s.pending_amount), 0))}*`);
+    lines.push('');
+    lines.push(`_Gerado pelo FutClebs_ 🤖`);
+
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage({ type: 'success', text: '📋 Coop copiado! Cole no WhatsApp.' });
+    } catch {
+      setMessage({ type: 'error', text: 'Erro ao copiar. Tente manualmente.' });
+    }
+  };
+
   const handleSaveConfig = async () => {
     setSavingConfig(true);
     setMessage(null);
@@ -586,10 +633,16 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
                 </div>
               </div>
 
-              <button onClick={handleGenerateMonthly}
-                className="w-full py-3 rounded-2xl bg-emerald-600/10 border border-emerald-500/30 hover:bg-emerald-600/20 text-emerald-400 font-black text-xs uppercase tracking-widest transition-all">
-                ⚡ Gerar Cobranças do Mês Atual
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={handleGenerateMonthly}
+                  className="py-3 rounded-2xl bg-emerald-600/10 border border-emerald-500/30 hover:bg-emerald-600/20 text-emerald-400 font-black text-xs uppercase tracking-widest transition-all">
+                  ⚡ Gerar Cobranças
+                </button>
+                <button onClick={handleCopyCoop}
+                  className="py-3 rounded-2xl bg-blue-600/10 border border-blue-500/30 hover:bg-blue-600/20 text-blue-400 font-black text-xs uppercase tracking-widest transition-all">
+                  📋 Copiar Coop
+                </button>
+              </div>
 
               {summary.filter(s => s.pending_amount > 0).length > 0 && (
                 <div className="space-y-2">
