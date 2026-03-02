@@ -88,10 +88,12 @@ const App: React.FC = () => {
     }
   }, [signOut, ui]);
 
-  // Load user on session change
+  // Load user on session change — só dispara se o userId realmente mudou
   useEffect(() => {
     if (session?.user) {
-      loadUserData(session.user.id);
+      if (!userProfile || userProfile.id !== session.user.id) {
+        loadUserData(session.user.id);
+      }
     } else {
       setUserProfile(null);
       ui.setStep(Step.PHONE_CHECK);

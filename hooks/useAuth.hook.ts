@@ -26,6 +26,8 @@ export const useAuth = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
+      // Ignora TOKEN_REFRESHED e USER_UPDATED para não recarregar o app ao voltar para a aba
+      if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
       setSession(session);
     });
 
