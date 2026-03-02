@@ -85,7 +85,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
             </button>
           )}
 
-          {isSuperAdmin && (
+          {(isSuperAdmin || userProfile.is_admin) && (
             <button
               onClick={onOpenFinancial}
               className="px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5"
