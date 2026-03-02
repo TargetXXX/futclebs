@@ -82,6 +82,7 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
   const [showAddForm, setShowAddForm] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [filterPaid, setFilterPaid] = useState<'all' | 'paid' | 'pending'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'monthly_both' | 'monthly_one' | 'daily' | 'goalkeeper'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [monthlyStats, setMonthlyStats] = useState<{
     month: string;
@@ -337,8 +338,9 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
 
   const filteredSummary = summary.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchPaid = filterPaid === 'all' ? true : filterPaid === 'pending' ? s.pending_amount > 0 : s.pending_amount === 0;
-    return matchSearch && matchPaid;
+    const matchPaid   = filterPaid === 'all' ? true : filterPaid === 'pending' ? s.pending_amount > 0 : s.pending_amount === 0;
+    const matchType   = filterType === 'all' ? true : s.subscription_type === filterType;
+    return matchSearch && matchPaid && matchType;
   });
 
   const totalPending    = summary.reduce((a, s) => a + Number(s.pending_amount), 0);
@@ -887,6 +889,20 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
                       <button key={f} onClick={() => setFilterPaid(f)}
                         className={`flex-1 py-2 rounded-xl font-black text-[10px] uppercase border transition-all ${filterPaid === f ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-slate-800/50 border-slate-700/50 text-slate-500'}`}>
                         {f === 'all' ? 'Todos' : f === 'pending' ? 'Pendentes' : 'Pagos'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { key: 'all',          label: 'Todos',    color: 'bg-slate-800/50 border-slate-700/50 text-slate-400' },
+                      { key: 'monthly_both', label: 'Mensal 2x', color: 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' },
+                      { key: 'monthly_one',  label: 'Mensal 1x', color: 'bg-blue-500/20 border-blue-500/30 text-blue-400' },
+                      { key: 'daily',        label: 'Diário',   color: 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400' },
+                      { key: 'goalkeeper',   label: '🧤 Goleiro', color: 'bg-slate-700/30 border-slate-600/40 text-slate-400' },
+                    ] as const).map(f => (
+                      <button key={f.key} onClick={() => setFilterType(f.key)}
+                        className={`px-2.5 py-1.5 rounded-xl font-black text-[9px] uppercase border transition-all ${filterType === f.key ? f.color : 'bg-slate-800/30 border-slate-700/30 text-slate-600 hover:text-slate-400'}`}>
+                        {f.label}
                       </button>
                     ))}
                   </div>
