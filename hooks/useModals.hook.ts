@@ -18,6 +18,7 @@ interface ModalState {
   isPositionSelectorOpen: boolean;
   isSeasonModalOpen: boolean;
   isWhatsAppConfigOpen: boolean;
+  isFinancialModalOpen: boolean;
 }
 
 export const useModals = () => {
@@ -39,6 +40,7 @@ export const useModals = () => {
     isSeasonModalOpen: false,
     isPositionSelectorOpen: false,
     isWhatsAppConfigOpen: false,
+    isFinancialModalOpen: false,
   });
 
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);

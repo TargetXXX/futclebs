@@ -17,6 +17,7 @@ import { PlayerPositionSelectorModal } from './modals/player/PlayerPositionSelec
 import { AvatarModal } from './modals/player/AvatarModal.component.tsx';
 import { SeasonModal } from './modals/admin/SeasonModal.tsx';
 import { WhatsAppConfigModal } from './modals/admin/WhatsAppConfigModal.tsx';
+import { FinancialModal } from './modals/admin/FinancialModal.tsx';
 
 interface AllModalsProps {
   modals: any;
@@ -225,6 +226,12 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isWhatsAppConfigOpen}
         onClose={() => modals.closeModal('isWhatsAppConfigOpen')}
         isSuperAdmin={isSuperAdmin}
+      />
+
+      {/* Financial Modal */}
+      <FinancialModal
+        isOpen={modals.isFinancialModalOpen}
+        onClose={() => modals.closeModal('isFinancialModalOpen')}
       />
     </>
   );

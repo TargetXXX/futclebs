@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase, Player } from '@/services/supabase';
+import { supabase, Player, DAY_SHORT } from '@/services/supabase';
 import { PlayerPositionSelectorModal } from '../player/PlayerPositionSelectorModal.tsx';
 import { SUPER_ADMIN_IDS } from '@/constants/app.constants';
 
@@ -236,6 +236,17 @@ export const AdminUserManagementModal: React.FC<AdminUserManagementModalProps> =
                                  pos === 'defender' ? '🛡️ DEF' :
                                  pos === 'midfielder' ? '⚽ MEI' :
                                  pos === 'forward' ? '🎯 ATA' : pos}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Dias de jogo */}
+                        {(p.match_days || []).length > 0 && (
+                          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                            <span className="text-[9px] text-slate-600 font-black uppercase">📅</span>
+                            {(p.match_days || []).map(d => (
+                              <span key={d} className="px-1.5 py-0.5 bg-slate-700/60 text-slate-400 border border-slate-600/40 rounded text-[9px] font-black uppercase">
+                                {DAY_SHORT[d]}
                               </span>
                             ))}
                           </div>
