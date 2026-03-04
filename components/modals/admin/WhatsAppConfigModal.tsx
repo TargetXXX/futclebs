@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
+import { OrganizationRequiredModal } from '../shared/OrganizationRequiredModal';
 
 interface WhatsAppConfig {
   id?: string;
@@ -38,6 +39,7 @@ interface WhatsAppConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
   isSuperAdmin: boolean;
+  organizationId: string | null;
 }
 
 const emptyConfig: WhatsAppConfig = {
@@ -70,7 +72,7 @@ const DAYS = [
   { field: 'send_friday',    label: 'Sex' },
 ];
 
-export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen, onClose, isSuperAdmin }) => {
+export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen, onClose, isSuperAdmin, organizationId }) => {
   const [config, setConfig] = useState<WhatsAppConfig>(emptyConfig);
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [editingGroup, setEditingGroup] = useState<WhatsAppGroup | null>(null);
@@ -83,16 +85,16 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
   const [activeTab, setActiveTab] = useState<'config' | 'groups' | 'logs'>('config');
 
   useEffect(() => {
-    if (isOpen) { loadAll(); setMessage(null); }
-  }, [isOpen]);
+    if (isOpen && organizationId) { loadAll(); setMessage(null); }
+  }, [isOpen, organizationId]);
 
   const loadAll = async () => {
     setLoading(true);
     try {
       const [{ data: cfg }, { data: grps }, { data: lgLogs }] = await Promise.all([
-        supabase.from('whatsapp_config').select('*').limit(1).single(),
-        supabase.from('whatsapp_groups').select('*').order('created_at'),
-        supabase.from('whatsapp_sends_log').select('*').order('sent_at', { ascending: false }).limit(10),
+        supabase.from('whatsapp_config').select('*').eq('organization_id', organizationId).limit(1).single(),
+        supabase.from('whatsapp_groups').select('*').eq('organization_id', organizationId).order('created_at'),
+        supabase.from('whatsapp_sends_log').select('*').eq('organization_id', organizationId).order('sent_at', { ascending: false }).limit(10),
       ]);
       if (cfg) setConfig(cfg);
       setGroups(grps || []);
@@ -116,6 +118,7 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
           evolution_api_url: config.evolution_api_url.trim().replace(/\/$/, ''),
           evolution_api_key: config.evolution_api_key.trim(),
           instance_name: config.instance_name.trim(),
+          organization_id: organizationId,
           updated_at: new Date().toISOString(),
         }).eq('id', config.id);
         if (error) throw error;
@@ -125,6 +128,7 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
           evolution_api_url: config.evolution_api_url.trim().replace(/\/$/, ''),
           evolution_api_key: config.evolution_api_key.trim(),
           instance_name: config.instance_name.trim(),
+          organization_id: organizationId,
         }).select().single();
         if (error) throw error;
         if (data) setConfig(data);
@@ -151,6 +155,7 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
           send_thursday: g.send_thursday,
           send_friday: g.send_friday,
           is_active: g.is_active,
+          organization_id: organizationId,
         }).eq('id', g.id);
         if (error) throw error;
       } else {
@@ -163,6 +168,7 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
           send_thursday: g.send_thursday,
           send_friday: g.send_friday,
           is_active: g.is_active,
+          organization_id: organizationId,
         });
         if (error) throw error;
       }
@@ -187,7 +193,7 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
     setTesting(key);
     setMessage(null);
     try {
-      const body: any = { manual: true };
+      const body: any = { manual: true, organization_id: organizationId };
       if (groupId) body.group_id = groupId;
 
       const { data, error } = await supabase.functions.invoke('send-match-list', { body });
@@ -213,6 +219,15 @@ export const WhatsAppConfigModal: React.FC<WhatsAppConfigModalProps> = ({ isOpen
     new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   if (!isOpen || !isSuperAdmin) return null;
+
+  if (!organizationId) {
+    return (
+      <OrganizationRequiredModal
+        message="Selecione uma organização para configurar o WhatsApp."
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">

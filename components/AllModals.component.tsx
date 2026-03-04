@@ -18,6 +18,8 @@ import { AvatarModal } from './modals/player/AvatarModal.component.tsx';
 import { SeasonModal } from './modals/admin/SeasonModal.tsx';
 import { WhatsAppConfigModal } from './modals/admin/WhatsAppConfigModal.tsx';
 import { FinancialModal } from './modals/admin/FinancialModal.tsx';
+import { Organization } from '../hooks/useOrganizations.hook';
+import { OrganizationManagementModal } from './modals/admin/OrganizationManagementModal';
 
 interface AllModalsProps {
   modals: any;
@@ -33,6 +35,9 @@ interface AllModalsProps {
   onDeleteMatch: () => void;
   onAvatarSave: () => void;
   onAvatarRemove: () => void;
+  onSearchOrganizations: (query: string) => Promise<Organization[]>;
+  onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
+  onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
 }
 
 export const AllModals: React.FC<AllModalsProps> = ({
@@ -48,10 +53,23 @@ export const AllModals: React.FC<AllModalsProps> = ({
   onFetchUserProfile,
   onDeleteMatch,
   onAvatarSave,
-  onAvatarRemove
+  onAvatarRemove,
+  onSearchOrganizations,
+  onJoinOrganization,
+  onCreateOrganization
 }) => {
   return (
     <>
+
+      <OrganizationManagementModal
+        isOpen={modals.isOrganizationManagementOpen}
+        onClose={() => modals.closeModal('isOrganizationManagementOpen')}
+        isSuperAdmin={isSuperAdmin}
+        onSearchOrganizations={onSearchOrganizations}
+        onJoinOrganization={onJoinOrganization}
+        onCreateOrganization={onCreateOrganization}
+      />
+
       {/* Avatar Modal */}
       {modals.isAvatarModalOpen && (
         <AvatarModal
@@ -224,6 +242,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isSeasonModalOpen}
         onClose={() => modals.closeModal('isSeasonModalOpen')}
         currentUserId={userProfile.id}
+        organizationId={selectedOrganizationId}
       />
 
       {/* WhatsApp Config Modal */}
@@ -231,6 +250,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isWhatsAppConfigOpen}
         onClose={() => modals.closeModal('isWhatsAppConfigOpen')}
         isSuperAdmin={isSuperAdmin}
+        organizationId={selectedOrganizationId}
       />
 
       {/* Financial Modal */}

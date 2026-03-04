@@ -25,7 +25,6 @@ import { TabsNavigation } from './components/dashboard/TabsNavigation.component'
 import { MatchCard } from './components/dashboard/MatchCard.component';
 import { RankingTab } from './components/dashboard/RankingTab';
 import { OrganizationSelector } from './components/dashboard/OrganizationSelector.component';
-import { OrganizationAccessPanel } from './components/dashboard/OrganizationAccessPanel.component';
 import { AllModals } from './components/AllModals.component';
 
 const ORGANIZATION_ROUTE_PREFIX = '/organization/';
@@ -260,7 +259,9 @@ const App: React.FC = () => {
           isSuperAdmin={isSuperAdmin}
           isOrganizationAdmin={isOrganizationAdmin}
           organizationName={organizationFromRoute?.name || null}
+          hasActiveOrganization={isOrganizationDashboard}
           onOpenUserManagement={() => modals.openModal('isAdminUserManagementOpen')}
+          onOpenOrganizationManagement={() => modals.openModal('isOrganizationManagementOpen')}
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
           onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
           onOpenWhatsAppConfig={() => modals.openModal('isWhatsAppConfigOpen')}
@@ -275,13 +276,15 @@ const App: React.FC = () => {
           isLoading={loadingOrganizationData}
         />
 
+        <div className="flex justify-end">
+          <button
+            onClick={() => modals.openModal('isOrganizationManagementOpen')}
+            className="px-3 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all text-[10px] font-black uppercase tracking-wider"
+          >
+            Gerenciar organizações
+          </button>
+        </div>
 
-        <OrganizationAccessPanel
-          isSuperAdmin={isSuperAdmin}
-          onSearchOrganizations={searchOrganizations}
-          onJoinOrganization={joinOrganization}
-          onCreateOrganization={createOrganization}
-        />
 
         {!hasOrganizations ? (
           <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 text-center">
@@ -487,6 +490,9 @@ const App: React.FC = () => {
         onDeleteMatch={dashboardHandlers.handleDeleteMatch}
         onAvatarSave={dashboardHandlers.handleAvatarSave}
         onAvatarRemove={dashboardHandlers.handleAvatarRemove}
+        onSearchOrganizations={searchOrganizations}
+        onJoinOrganization={joinOrganization}
+        onCreateOrganization={createOrganization}
       />
     </div>
   );
