@@ -6,10 +6,11 @@ import { Input } from '../shared/Input.tsx';
 interface CreateMatchModalProps {
   isOpen: boolean;
   onClose: () => void;
+  organizationId: string | null;
   onRefresh: () => void;
 }
 
-export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onClose, onRefresh }) => {
+export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onClose, organizationId, onRefresh }) => {
   const [matchDate, setMatchDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +18,7 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onCl
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!matchDate) return setError('Selecione uma data');
+    if (!organizationId) return setError('Selecione uma organização');
     
     setLoading(true);
     setError(null);
@@ -28,7 +30,8 @@ export const CreateMatchModal: React.FC<CreateMatchModalProps> = ({ isOpen, onCl
         .insert([{
           match_date: matchDate,
           status: 'open',
-          created_by: user?.id
+          created_by: user?.id,
+          organization_id: organizationId
         }]);
 
       if (insertError) throw insertError;

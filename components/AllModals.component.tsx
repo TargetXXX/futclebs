@@ -25,8 +25,10 @@ interface AllModalsProps {
   userStats: PlayerStats | null;
   avatar: any;
   isSuperAdmin: boolean;
+  isOrganizationAdmin: boolean;
+  selectedOrganizationId: string | null;
   loading: boolean;
-  onFetchMatches: (userId: string) => void;
+  onFetchMatches: (userId: string, organizationId: string | null) => void;
   onFetchUserProfile: (userId: string) => void;
   onDeleteMatch: () => void;
   onAvatarSave: () => void;
@@ -39,6 +41,8 @@ export const AllModals: React.FC<AllModalsProps> = ({
   userStats,
   avatar,
   isSuperAdmin,
+  isOrganizationAdmin,
+  selectedOrganizationId,
   loading,
   onFetchMatches,
   onFetchUserProfile,
@@ -92,7 +96,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
           });
           modals.openModal('isMiniStatsOpen');
         }}
-        onRefreshMatchList={() => onFetchMatches(userProfile.id)}
+        onRefreshMatchList={() => onFetchMatches(userProfile.id, selectedOrganizationId)}
       />
 
       {/* Admin Management Modal */}
@@ -100,8 +104,8 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isAdminManagementOpen}
         onClose={() => modals.closeModal('isAdminManagementOpen')}
         matchId={modals.selectedMatchId || ''}
-        onRefresh={() => onFetchMatches(userProfile.id)}
-        isAdmin={userProfile.is_admin}
+        onRefresh={() => onFetchMatches(userProfile.id, selectedOrganizationId)}
+        isAdmin={isOrganizationAdmin}
         isSuperAdmin={isSuperAdmin}
       />
 
@@ -110,7 +114,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isTeamSortingOpen}
         onClose={() => modals.closeModal('isTeamSortingOpen')}
         matchId={modals.selectedMatchId || ''}
-        isAdmin={userProfile.is_admin}
+        isAdmin={isOrganizationAdmin}
       />
 
       {/* Match Finish Modal */}
@@ -118,7 +122,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isMatchFinishOpen}
         onClose={() => modals.closeModal('isMatchFinishOpen')}
         matchId={modals.selectedMatchId || ''}
-        onRefresh={() => onFetchMatches(userProfile.id)}
+        onRefresh={() => onFetchMatches(userProfile.id, selectedOrganizationId)}
         onOpenVotingStatus={
           isSuperAdmin
             ? () => {
@@ -135,7 +139,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onClose={() => modals.closeModal('isPlayerVoteOpen')}
         matchId={modals.selectedMatchId || ''}
         currentUserId={userProfile.id}
-        onRefresh={() => onFetchMatches(userProfile.id)}
+        onRefresh={() => onFetchMatches(userProfile.id, selectedOrganizationId)}
       />
 
       {/* Match Summary Modal */}
@@ -144,14 +148,15 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onClose={() => modals.closeModal('isMatchSummaryOpen')}
         matchId={modals.selectedMatchId || ''}
         currentUserId={userProfile.id}
-        isAdmin={userProfile.is_admin}
+        isAdmin={isOrganizationAdmin}
       />
 
       {/* Create Match Modal */}
       <CreateMatchModal
         isOpen={modals.isCreateMatchOpen}
         onClose={() => modals.closeModal('isCreateMatchOpen')}
-        onRefresh={() => onFetchMatches(userProfile.id)}
+        organizationId={selectedOrganizationId}
+        onRefresh={() => onFetchMatches(userProfile.id, selectedOrganizationId)}
       />
 
       {/* Admin User Management Modal */}
@@ -192,7 +197,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onClose={() => modals.closeModal('isMatchCommentsOpen')}
         matchId={modals.selectedMatchId || ''}
         currentUserId={userProfile.id}
-        isAdmin={userProfile.is_admin}
+        isAdmin={isOrganizationAdmin}
       />
 
       {/* Voting Status Modal */}
