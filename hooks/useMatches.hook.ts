@@ -5,11 +5,17 @@ import { MatchWithExtras } from '../types/app.types';
 export const useMatches = () => {
   const [matches, setMatches] = useState<MatchWithExtras[]>([]);
 
-  const fetchMatches = useCallback(async (userId: string) => {
+  const fetchMatches = useCallback(async (userId: string, organizationId: string | null) => {
+    if (!organizationId) {
+      setMatches([]);
+      return;
+    }
+
     try {
       const { data: matchesData } = await supabase
         .from('matches')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('match_date', { ascending: false });
 
       if (!matchesData) return;
@@ -108,4 +114,3 @@ export const useMatches = () => {
     deleteMatch
   };
 };
-

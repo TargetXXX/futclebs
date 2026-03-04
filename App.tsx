@@ -15,6 +15,7 @@ import { useAuthHandlers } from './hooks/useAuthHandlers.hook';
 import { useMatchFilters } from './hooks/useMatchFilters.hook';
 import { useDashboardHandlers } from './hooks/useDashboardHandlers.hook';
 import { usePlayerDebt } from './hooks/usePlayerDebt.hook';
+import { useOrganizations } from './hooks/useOrganizations.hook';
 
 // Components
 import { AuthForm } from './components/auth/AuthForm.component';
@@ -23,6 +24,7 @@ import { StatsCard } from './components/dashboard/StatsCard.component';
 import { TabsNavigation } from './components/dashboard/TabsNavigation.component';
 import { MatchCard } from './components/dashboard/MatchCard.component';
 import { RankingTab } from './components/dashboard/RankingTab';
+import { OrganizationSelector } from './components/dashboard/OrganizationSelector.component';
 import { AllModals } from './components/AllModals.component';
 
 const App: React.FC = () => {
@@ -33,8 +35,16 @@ const App: React.FC = () => {
   const modals = useModals();
   const avatar = useAvatar(session?.user?.id || '', () => fetchUserProfile(session?.user?.id || ''));
 
+  const {
+    organizations,
+    selectedOrganizationId,
+    loadingOrganizations,
+    isCurrentOrganizationAdmin,
+    selectOrganization
+  } = useOrganizations(session?.user?.id || null);
+
   // Débito do jogador logado
-  const { debt } = usePlayerDebt(userProfile?.id ?? null);
+  const { debt } = usePlayerDebt(userProfile?.id ?? null, selectedOrganizationId);
 
   // UI State
   const ui = useUIState();
@@ -42,9 +52,11 @@ const App: React.FC = () => {
 
   // Loading profile state
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [loadingOrganizationData, setLoadingOrganizationData] = useState(false);
 
   // Computed
   const isSuperAdmin = !!userProfile && SUPER_ADMIN_IDS.includes(userProfile.id);
+  const isOrganizationAdmin = isCurrentOrganizationAdmin || isSuperAdmin;
   const { getFilteredMatches, getCategoryCount } = useMatchFilters(matches);
   const filteredMatches = getFilteredMatches(ui.activeCategory);
 
@@ -52,11 +64,26 @@ const App: React.FC = () => {
   const loadUserData = useCallback(async (userId: string) => {
     setLoadingProfile(true);
     try {
-      await Promise.all([fetchUserProfile(userId), fetchMatches(userId)]);
+      await fetchUserProfile(userId);
     } finally {
       setLoadingProfile(false);
     }
-  }, [fetchUserProfile, fetchMatches]);
+  }, [fetchUserProfile]);
+
+
+  useEffect(() => {
+    const loadOrganizationDashboard = async () => {
+      if (!session?.user?.id || !selectedOrganizationId) return;
+      setLoadingOrganizationData(true);
+      try {
+        await fetchMatches(session.user.id, selectedOrganizationId);
+      } finally {
+        setLoadingOrganizationData(false);
+      }
+    };
+
+    loadOrganizationDashboard();
+  }, [session?.user?.id, selectedOrganizationId, fetchMatches]);
 
   // Auth handlers
   const authHandlers = useAuthHandlers(loadUserData, ui.setStep, ui.setError, ui.setLoading);
@@ -65,6 +92,7 @@ const App: React.FC = () => {
   const dashboardHandlers = useDashboardHandlers(
     userProfile,
     isSuperAdmin,
+    selectedOrganizationId,
     deleteMatch,
     fetchMatches,
     fetchUserProfile,
@@ -120,6 +148,15 @@ const App: React.FC = () => {
     );
   }
 
+  if (session && loadingOrganizations) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin" />
+        <p className="text-slate-500 font-black text-[10px] uppercase tracking-widest animate-pulse">Carregando organizações...</p>
+      </div>
+    );
+  }
+
   // Tela de autenticação
   if (!session || !userProfile) {
     return (
@@ -151,6 +188,23 @@ const App: React.FC = () => {
     );
   }
 
+  if (session && userProfile && !selectedOrganizationId) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-3xl p-6 text-center">
+          <p className="text-sm font-black text-white">Você ainda não está vinculado a nenhuma organização.</p>
+          <p className="text-slate-400 text-xs mt-2">Peça para um administrador adicionar seu usuário em uma organização para liberar o dashboard.</p>
+          <button
+            onClick={handleLogout}
+            className="mt-5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-black uppercase text-slate-200"
+          >
+            Sair
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Dashboard principal
   return (
     <div className="min-h-screen bg-slate-950 pb-20 p-3 sm:p-8">
@@ -159,12 +213,21 @@ const App: React.FC = () => {
         <DashboardHeader
           userProfile={userProfile}
           isSuperAdmin={isSuperAdmin}
+          isOrganizationAdmin={isOrganizationAdmin}
+          organizationName={organizations.find((org) => org.id === selectedOrganizationId)?.name || null}
           onOpenUserManagement={() => modals.openModal('isAdminUserManagementOpen')}
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
           onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
           onOpenWhatsAppConfig={() => modals.openModal('isWhatsAppConfigOpen')}
           onOpenFinancial={() => modals.openModal('isFinancialModalOpen')}
           onLogout={handleLogout}
+        />
+
+        <OrganizationSelector
+          organizations={organizations}
+          selectedOrganizationId={selectedOrganizationId}
+          onSelectOrganization={selectOrganization}
+          isLoading={loadingOrganizationData}
         />
 
         {/* Stats Card */}
@@ -195,6 +258,14 @@ const App: React.FC = () => {
           </div>
         )}
 
+
+        {loadingOrganizationData && (
+          <div className="flex items-center gap-3 p-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 animate-in fade-in duration-300">
+            <div className="w-5 h-5 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" />
+            <p className="text-emerald-300 text-[11px] font-black uppercase tracking-wide">Sincronizando dados da organização selecionada...</p>
+          </div>
+        )}
+
         {/* Tabs */}
         <TabsNavigation
           activeCategory={ui.activeCategory}
@@ -206,6 +277,7 @@ const App: React.FC = () => {
         <div className="space-y-4">
           {ui.activeCategory === 'ranking' ? (
             <RankingTab
+              selectedOrganizationId={selectedOrganizationId}
               userPositions={userProfile.positions}
               isGoalkeeper={userProfile.is_goalkeeper}
               onPlayerClick={(p) => {
@@ -218,7 +290,7 @@ const App: React.FC = () => {
                 modals.openModal('isMiniStatsOpen');
               }}
             />
-          ) : ui.loading ? (
+          ) : (ui.loading || loadingOrganizationData) ? (
             <div className="py-20 text-center">
               <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mx-auto" />
             </div>
@@ -233,6 +305,7 @@ const App: React.FC = () => {
                 match={match}
                 userProfile={userProfile}
                 isSuperAdmin={isSuperAdmin}
+                isOrganizationAdmin={isOrganizationAdmin}
                 activeAdminMenu={ui.activeAdminMenu}
                 setActiveAdminMenu={ui.setActiveAdminMenu}
                 onOpenPlayers={() => {
@@ -281,6 +354,8 @@ const App: React.FC = () => {
         userStats={userStats}
         avatar={avatar}
         isSuperAdmin={isSuperAdmin}
+        isOrganizationAdmin={isOrganizationAdmin}
+        selectedOrganizationId={selectedOrganizationId}
         loading={ui.loading}
         onFetchMatches={fetchMatches}
         onFetchUserProfile={fetchUserProfile}
