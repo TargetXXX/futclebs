@@ -53,7 +53,7 @@ const App: React.FC = () => {
     searchOrganizations,
     joinOrganization,
     createOrganization,
-    deleteOrganization,
+    deactivateOrganization,
     getOrganizationMembers,
     setOrganizationMemberAdmin,
     removeOrganizationMember
@@ -520,7 +520,7 @@ const App: React.FC = () => {
         onSearchOrganizations={searchOrganizations}
         onJoinOrganization={joinOrganization}
         onCreateOrganization={createOrganization}
-        onDeleteOrganization={deleteOrganization}
+        onDeactivateOrganization={deactivateOrganization}
         organizations={organizations}
         onGetOrganizationMembers={getOrganizationMembers}
         onSetOrganizationMemberAdmin={setOrganizationMemberAdmin}
