@@ -4,8 +4,9 @@ import { Player } from '../services/supabase';
 export const useDashboardHandlers = (
   userProfile: Player | null,
   isSuperAdmin: boolean,
+  selectedOrganizationId: string | null,
   deleteMatch: (matchId: string) => Promise<void>,
-  fetchMatches: (userId: string) => void,
+  fetchMatches: (userId: string, organizationId: string | null) => void,
   fetchUserProfile: (userId: string) => void,
   modals: any,
   avatar: any,
@@ -20,7 +21,7 @@ export const useDashboardHandlers = (
     setLoading(true);
     try {
       await deleteMatch(modals.selectedMatchId);
-      await fetchMatches(userProfile.id);
+      await fetchMatches(userProfile.id, selectedOrganizationId);
       modals.closeModal('isDeleteConfirmOpen');
       modals.setSelectedMatchId(null);
       setActiveAdminMenu(null);
@@ -30,7 +31,7 @@ export const useDashboardHandlers = (
     } finally {
       setLoading(false);
     }
-  }, [modals, userProfile, deleteMatch, fetchMatches, setError, setLoading, setActiveAdminMenu]);
+  }, [modals, userProfile, deleteMatch, fetchMatches, setError, setLoading, setActiveAdminMenu, selectedOrganizationId]);
 
   const handleOpenVotingStatus = useCallback((matchId: string) => {
     if (!isSuperAdmin) {

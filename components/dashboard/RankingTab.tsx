@@ -24,6 +24,7 @@ interface Season {
 
 interface RankingTabProps {
   onPlayerClick: (player: RankingPlayer) => void;
+  selectedOrganizationId: string | null;
   userPositions?: String[] | null;
   isGoalkeeper?: boolean;
 }
@@ -38,7 +39,7 @@ const POSITION_CONFIG: Record<PositionFilter, { label: string; emoji: string; co
   Goleiro: { label: 'Goleiro', emoji: '🧤', color: 'orange',  accent: 'text-orange-400' },
 };
 
-export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPositions, isGoalkeeper }) => {
+export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, selectedOrganizationId, userPositions, isGoalkeeper }) => {
   const [loading, setLoading] = useState(true);
   const [allPlayers, setAllPlayers] = useState<RankingPlayer[]>([]);
   const [fieldRanking, setFieldRanking] = useState<RankingPlayer[]>([]);
@@ -57,12 +58,15 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
   const [positionFilter, setPositionFilter] = useState<PositionFilter>(getDefaultFilter);
 
   useEffect(() => {
+    if (!selectedOrganizationId) return;
     fetchRankings();
     fetchActiveSeason();
-  }, []);
+  }, [selectedOrganizationId]);
 
   const fetchActiveSeason = async () => {
     try {
+      if (!selectedOrganizationId) return;
+
       const { data } = await supabase
         .from('seasons')
         .select('*')
@@ -78,7 +82,8 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
       const { data: matches } = await supabase
         .from('matches')
         .select('id, match_date')
-        .eq('status', 'finished');
+        .eq('status', 'finished')
+        .eq('organization_id', selectedOrganizationId);
 
       let count = 0;
       if (matches) {
@@ -97,8 +102,33 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
   };
 
   const fetchRankings = async () => {
+    if (!selectedOrganizationId) {
+      setAllPlayers([]);
+      setFieldRanking([]);
+      setGkRanking([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
+      const { data: organizationPlayers, error: organizationPlayersError } = await supabase
+        .from('organization_players')
+        .select('player_id')
+        .eq('organization_id', selectedOrganizationId);
+
+      if (organizationPlayersError) throw organizationPlayersError;
+
+      const organizationPlayerIds = (organizationPlayers || []).map((item: any) => item.player_id);
+
+      if (organizationPlayerIds.length === 0) {
+        setAllPlayers([]);
+        setFieldRanking([]);
+        setGkRanking([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('players')
         .select(`
@@ -108,7 +138,8 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, userPosit
           player_stats (player_id, velocidade, finalizacao, passe, drible, defesa, fisico, esportividade),
           avatar,
           positions
-        `);
+        `)
+        .in('id', organizationPlayerIds);
 
       if (error) throw error;
      
