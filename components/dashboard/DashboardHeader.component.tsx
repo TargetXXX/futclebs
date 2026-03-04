@@ -6,7 +6,9 @@ interface DashboardHeaderProps {
   isSuperAdmin: boolean;
   isOrganizationAdmin: boolean;
   organizationName: string | null;
+  hasActiveOrganization: boolean;
   onOpenUserManagement: () => void;
+  onOpenOrganizationManagement: () => void;
   onOpenCreateMatch: () => void;
   onOpenSeasonModal: () => void;
   onOpenWhatsAppConfig: () => void;
@@ -19,13 +21,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   isSuperAdmin,
   isOrganizationAdmin,
   organizationName,
+  hasActiveOrganization,
   onOpenUserManagement,
+  onOpenOrganizationManagement,
   onOpenCreateMatch,
   onOpenSeasonModal,
   onOpenWhatsAppConfig,
   onOpenFinancial,
   onLogout,
 }) => {
+  const canOpenAdminMenu = isSuperAdmin || isOrganizationAdmin;
+  const canManageOrganizationSettings = isSuperAdmin && hasActiveOrganization;
+
   return (
     <header className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
@@ -58,33 +65,39 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         </button>
       </div>
 
-      {(isSuperAdmin || isOrganizationAdmin) && (
-        <div className="flex flex-wrap gap-2">
+      {canOpenAdminMenu && (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {isSuperAdmin && (
+            <button onClick={onOpenOrganizationManagement} className="px-3 py-2 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider">
+              🏢 Organizações
+            </button>
+          )}
+
           {isSuperAdmin && (
             <button onClick={onOpenUserManagement} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/50 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider">
               Gerenciar Usuários
             </button>
           )}
 
-          {isSuperAdmin && (
+          {canManageOrganizationSettings && (
             <button onClick={onOpenSeasonModal} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-yellow-500/20 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider" title="Gerenciar Temporadas">
               🏆 Temporada
             </button>
           )}
 
-          {isSuperAdmin && (
+          {canManageOrganizationSettings && (
             <button onClick={onOpenWhatsAppConfig} className="px-3 py-2 bg-green-600/10 hover:bg-green-600/20 text-green-400 border border-green-500/30 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5" title="WhatsApp — Enviar lista / Configurar">
               WhatsApp
             </button>
           )}
 
-          {(isSuperAdmin || isOrganizationAdmin) && (
+          {hasActiveOrganization && (
             <button onClick={onOpenFinancial} className="px-3 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5" title="Financeiro — Mensalidades">
               💰 Caixa
             </button>
           )}
 
-          {isOrganizationAdmin && (
+          {hasActiveOrganization && isOrganizationAdmin && (
             <button onClick={onOpenCreateMatch} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 rounded-xl transition-all text-[10px] font-black uppercase tracking-wider shadow-lg shadow-emerald-600/20">
               Criar Partida
             </button>

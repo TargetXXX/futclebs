@@ -3,6 +3,7 @@ import { supabase } from '@/services/supabase';
 import { SUPER_ADMIN_IDS } from '@/constants/app.constants';
 import { ConfirmationModal } from '../shared/ConfirmationModal';
 import { calculateByPosition } from '@/utils/overall.utils';
+import { OrganizationRequiredModal } from '../shared/OrganizationRequiredModal';
 
 
 interface Season {
@@ -17,11 +18,12 @@ interface SeasonModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserId: string;
+  organizationId: string | null;
 }
 
 const toInputDate = (iso: string) => iso.slice(0, 10);
 
-export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, currentUserId }) => {
+export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, currentUserId, organizationId }) => {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -45,7 +47,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
   const isSuperAdmin = SUPER_ADMIN_IDS.includes(currentUserId);
 
   useEffect(() => {
-    if (isOpen && isSuperAdmin) {
+    if (isOpen && isSuperAdmin && organizationId) {
       loadSeasons();
       setMessage(null);
       setNewSeasonName('');
@@ -53,7 +55,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
       setNewEndDate('');
       setEditingId(null);
     }
-  }, [isOpen]);
+  }, [isOpen, isSuperAdmin, organizationId]);
 
   const loadSeasons = async () => {
     setLoading(true);
@@ -61,6 +63,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
       const { data, error } = await supabase
         .from('seasons')
         .select('*')
+        .eq('organization_id', organizationId)
         .order('started_at', { ascending: false });
 
       if (error) throw error;
@@ -76,7 +79,8 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
       const { data: matches } = await supabase
         .from('matches')
         .select('id, match_date')
-        .eq('status', 'finished');
+        .eq('status', 'finished')
+        .eq('organization_id', organizationId);
 
       if (matches) {
         const counts: Record<string, number> = {};
@@ -109,6 +113,7 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
         started_at: new Date(newStartDate + 'T12:00:00').toISOString(),
         ended_at: newEndDate ? new Date(newEndDate + 'T12:00:00').toISOString() : null,
         created_by: currentUserId,
+        organization_id: organizationId,
       };
 
       const { error, data } = await supabase.from('seasons').insert(payload).select();
@@ -312,6 +317,15 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
   const canCreate = newSeasonName.trim() && newStartDate;
 
   if (!isOpen || !isSuperAdmin) return null;
+
+  if (!organizationId) {
+    return (
+      <OrganizationRequiredModal
+        message="Selecione uma organização para gerenciar temporadas."
+        onClose={onClose}
+      />
+    );
+  }
 
   // Todas as temporadas (ativas e encerradas) no histórico
   const allSeasons = seasons;
