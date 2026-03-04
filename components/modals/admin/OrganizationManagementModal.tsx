@@ -9,7 +9,7 @@ interface OrganizationManagementModalProps {
   onSearchOrganizations: (query: string, options?: { includeJoined?: boolean }) => Promise<Organization[]>;
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
-  onDeleteOrganization: (organizationId: string) => Promise<void>;
+  onDeactivateOrganization: (organizationId: string) => Promise<void>;
   joinedOrganizationIds: string[];
 }
 
@@ -20,7 +20,7 @@ export const OrganizationManagementModal: React.FC<OrganizationManagementModalPr
   onSearchOrganizations,
   onJoinOrganization,
   onCreateOrganization,
-  onDeleteOrganization,
+  onDeactivateOrganization,
   joinedOrganizationIds,
 }) => {
   if (!isOpen) return null;
@@ -46,7 +46,7 @@ export const OrganizationManagementModal: React.FC<OrganizationManagementModalPr
             onSearchOrganizations={onSearchOrganizations}
             onJoinOrganization={onJoinOrganization}
             onCreateOrganization={onCreateOrganization}
-            onDeleteOrganization={onDeleteOrganization}
+            onDeactivateOrganization={onDeactivateOrganization}
             joinedOrganizationIds={joinedOrganizationIds}
           />
         </div>

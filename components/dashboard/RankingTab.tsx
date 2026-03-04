@@ -70,6 +70,7 @@ export const RankingTab: React.FC<RankingTabProps> = ({ onPlayerClick, selectedO
       const { data } = await supabase
         .from('seasons')
         .select('*')
+        .eq('organization_id', selectedOrganizationId)
         .order('started_at', { ascending: false });
 
       if (!data || data.length === 0) return;

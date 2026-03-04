@@ -38,7 +38,7 @@ interface AllModalsProps {
   onSearchOrganizations: (query: string, options?: { includeJoined?: boolean }) => Promise<Organization[]>;
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
-  onDeleteOrganization: (organizationId: string) => Promise<void>;
+  onDeactivateOrganization: (organizationId: string) => Promise<void>;
   organizations: Organization[];
   onGetOrganizationMembers: (organizationId: string) => Promise<OrganizationMember[]>;
   onSetOrganizationMemberAdmin: (organizationId: string, memberId: string, isAdmin: boolean) => Promise<void>;
@@ -62,7 +62,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
   onSearchOrganizations,
   onJoinOrganization,
   onCreateOrganization,
-  onDeleteOrganization,
+  onDeactivateOrganization,
   organizations,
   onGetOrganizationMembers,
   onSetOrganizationMemberAdmin,
@@ -78,7 +78,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onSearchOrganizations={onSearchOrganizations}
         onJoinOrganization={onJoinOrganization}
         onCreateOrganization={onCreateOrganization}
-        onDeleteOrganization={onDeleteOrganization}
+        onDeactivateOrganization={onDeactivateOrganization}
         joinedOrganizationIds={organizations.map((org) => org.id)}
       />
 

@@ -6,7 +6,7 @@ interface OrganizationAccessPanelProps {
   onSearchOrganizations: (query: string, options?: { includeJoined?: boolean }) => Promise<Organization[]>;
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
-  onDeleteOrganization: (organizationId: string) => Promise<void>;
+  onDeactivateOrganization: (organizationId: string) => Promise<void>;
   joinedOrganizationIds: string[];
 }
 
@@ -15,7 +15,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   onSearchOrganizations,
   onJoinOrganization,
   onCreateOrganization,
-  onDeleteOrganization,
+  onDeactivateOrganization,
   joinedOrganizationIds,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,7 +25,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [joinPassword, setJoinPassword] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
-  const [deletingOrganizationId, setDeletingOrganizationId] = useState<string | null>(null);
+  const [deactivatingOrganizationId, setDeactivatingOrganizationId] = useState<string | null>(null);
 
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
@@ -106,27 +106,27 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
     }
   };
 
-  const handleDeleteOrganization = async (organization: Organization) => {
+  const handleDeactivateOrganization = async (organization: Organization) => {
     if (!isSuperAdmin) return;
 
-    const confirmed = window.confirm(`Tem certeza que deseja excluir a organização "${organization.name}"? Esta ação não pode ser desfeita.`);
+    const confirmed = window.confirm(`Tem certeza que deseja inativar a organização "${organization.name}"? Esta ação não pode ser desfeita.`);
     if (!confirmed) return;
 
-    setDeletingOrganizationId(organization.id);
+    setDeactivatingOrganizationId(organization.id);
     setMessage(null);
 
     try {
-      await onDeleteOrganization(organization.id);
+      await onDeactivateOrganization(organization.id);
       setSearchResults((prev) => prev.filter((org) => org.id !== organization.id));
-      setMessage({ type: 'success', text: `Organização "${organization.name}" excluída com sucesso.` });
+      setMessage({ type: 'success', text: `Organização "${organization.name}" inativada com sucesso.` });
       if (joiningId === organization.id) {
         setJoiningId(null);
         setJoinPassword('');
       }
     } catch (error: any) {
-      setMessage({ type: 'error', text: error.message || 'Erro ao excluir organização.' });
+      setMessage({ type: 'error', text: error.message || 'Erro ao inativar organização.' });
     } finally {
-      setDeletingOrganizationId(null);
+      setDeactivatingOrganizationId(null);
     }
   };
 
@@ -250,11 +250,11 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
                   {isSuperAdmin && (
                     <button
                       type="button"
-                      onClick={() => handleDeleteOrganization(org)}
-                      disabled={deletingOrganizationId === org.id}
+                      onClick={() => handleDeactivateOrganization(org)}
+                      disabled={deactivatingOrganizationId === org.id}
                       className="px-3 py-2 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 disabled:opacity-60 disabled:cursor-not-allowed text-[10px] font-black uppercase whitespace-nowrap transition-all"
                     >
-                      {deletingOrganizationId === org.id ? 'Excluindo...' : 'Excluir'}
+                      {deactivatingOrganizationId === org.id ? 'Inativando...' : 'Inativar'}
                     </button>
                   )}
                 </div>

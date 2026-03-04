@@ -194,7 +194,7 @@ export const useOrganizations = (userId: string | null) => {
     selectOrganization(organizationId);
   }, [fetchOrganizations, selectOrganization, userId]);
 
-  const deleteOrganization = useCallback(async (organizationId: string) => {
+  const deactivateOrganization = useCallback(async (organizationId: string) => {
     if (!userId) throw new Error('Usuário não autenticado.');
 
     const cleanId = organizationId.trim();
@@ -202,7 +202,7 @@ export const useOrganizations = (userId: string | null) => {
 
     const { error } = await supabase
       .from('organization')
-      .delete()
+      .update({ active: false })
       .eq('id', cleanId);
 
     if (error) throw error;
@@ -281,7 +281,7 @@ export const useOrganizations = (userId: string | null) => {
     searchOrganizations,
     joinOrganization,
     createOrganization,
-    deleteOrganization,
+    deactivateOrganization,
     getOrganizationMembers,
     setOrganizationMemberAdmin,
     removeOrganizationMember,
