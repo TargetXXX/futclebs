@@ -112,7 +112,8 @@ export const MatchPlayersModal: React.FC<MatchPlayersModalProps> = ({
         .insert([
           { 
             match_id: matchId, 
-            player_id: currentUserId 
+            player_id: currentUserId,
+            is_goalkeeper: currentUserIsGoalkeeper
           }
         ]);
 
