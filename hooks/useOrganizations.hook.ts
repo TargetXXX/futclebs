@@ -13,8 +13,17 @@ interface MembershipRow {
   is_admin: boolean;
 }
 
-interface OrganizationWithPassword extends Organization {
-  password: string;
+
+export interface OrganizationMember {
+  organization_id: string;
+  player_id: string;
+  is_admin: boolean;
+  players: {
+    id: string;
+    name: string;
+    phone: string;
+    avatar: string | null;
+  } | null;
 }
 
 export const useOrganizations = (userId: string | null) => {
@@ -125,43 +134,25 @@ export const useOrganizations = (userId: string | null) => {
   const joinOrganization = useCallback(async (organizationId: string, password: string) => {
     if (!userId) throw new Error('Usuário não autenticado.');
 
+    const alreadyMember = organizations.some((org) => org.id === organizationId);
+    if (alreadyMember) throw new Error('Você já faz parte desta organização.');
+
     const cleanPassword = password.trim();
     if (!cleanPassword) throw new Error('Informe a senha da organização.');
 
-    const { data: organizationData, error: orgError } = await supabase
-      .from('organization')
-      .select('id, name, description, active, password')
-      .eq('id', organizationId)
-      .eq('active', true)
-      .maybeSingle();
+    const { error: joinError } = await supabase.functions.invoke('join-organization', {
+      body: {
+        org_id: organizationId,
+        input_password: cleanPassword,
+      },
+    });
 
-    if (orgError) throw orgError;
-
-    const organization = organizationData as OrganizationWithPassword | null;
-    if (!organization) throw new Error('Organização não encontrada ou inativa.');
-
-    if (organization.password !== cleanPassword) {
-      throw new Error('Senha da organização inválida.');
-    }
-
-    const { error: joinError } = await supabase
-      .from('organization_players')
-      .upsert(
-        {
-          organization_id: organization.id,
-          player_id: userId,
-          is_admin: false,
-        },
-        { onConflict: 'organization_id,player_id' }
-      );
-
-    if (joinError) throw joinError;
+    if (joinError) throw new Error(joinError.message || 'Não foi possível entrar na organização.');
 
     await fetchOrganizations();
-    selectOrganization(organization.id);
-  }, [fetchOrganizations, selectOrganization, userId]);
+    selectOrganization(organizationId);
+  }, [fetchOrganizations, organizations, selectOrganization, userId]);
 
-  // FUNÇÃO CORRIGIDA ABAIXO
   const createOrganization = useCallback(async (payload: { name: string; description?: string; password: string }) => {
     if (!userId) throw new Error('Usuário não autenticado.');
 
@@ -172,7 +163,6 @@ export const useOrganizations = (userId: string | null) => {
     if (!name) throw new Error('Informe o nome da organização.');
     if (password.length < 4) throw new Error('A senha da organização deve ter ao menos 4 caracteres.');
 
-    // 1. Inserir na tabela organization incluindo o owner_id (CORREÇÃO DO ERRO)
     const { data: insertedOrganization, error: createError } = await supabase
       .from('organization')
       .insert({
@@ -180,7 +170,7 @@ export const useOrganizations = (userId: string | null) => {
         description,
         password,
         active: true,
-        owner_id: userId, // Campo obrigatório pela constraint foreign key
+        owner_id: userId,
       })
       .select('id')
       .single();
@@ -190,7 +180,6 @@ export const useOrganizations = (userId: string | null) => {
 
     const organizationId = insertedOrganization.id;
 
-    // 2. Vincular o criador como admin na tabela organization_players
     const { error: membershipError } = await supabase
       .from('organization_players')
       .insert({
@@ -204,7 +193,6 @@ export const useOrganizations = (userId: string | null) => {
     await fetchOrganizations();
     selectOrganization(organizationId);
   }, [fetchOrganizations, selectOrganization, userId]);
-
 
   const deleteOrganization = useCallback(async (organizationId: string) => {
     if (!userId) throw new Error('Usuário não autenticado.');
@@ -229,6 +217,57 @@ export const useOrganizations = (userId: string | null) => {
     await fetchOrganizations();
   }, [fetchOrganizations, selectedOrganizationId, storageKey, userId]);
 
+  const getOrganizationMembers = useCallback(async (organizationId: string) => {
+    if (!organizationId) return [] as OrganizationMember[];
+
+    const { data, error } = await supabase
+      .from('organization_players')
+      .select('organization_id, player_id, is_admin, players(id, name, phone, avatar)')
+      .eq('organization_id', organizationId)
+      .order('is_admin', { ascending: false })
+      .order('player_id', { ascending: true });
+
+    if (error) throw error;
+
+    return ((data as OrganizationMember[] | null) ?? []).sort((a, b) => {
+      const aName = a.players?.name || '';
+      const bName = b.players?.name || '';
+      return aName.localeCompare(bName, 'pt-BR');
+    });
+  }, []);
+
+  const setOrganizationMemberAdmin = useCallback(async (organizationId: string, memberId: string, isAdmin: boolean) => {
+    if (!organizationId || !memberId) throw new Error('Dados inválidos para atualizar membro.');
+
+    const { error } = await supabase
+      .from('organization_players')
+      .update({ is_admin: isAdmin })
+      .eq('organization_id', organizationId)
+      .eq('player_id', memberId);
+
+    if (error) throw error;
+
+    if (memberId === userId && selectedOrganizationId === organizationId) {
+      setAdminByOrganization((prev) => ({ ...prev, [organizationId]: isAdmin }));
+    }
+  }, [selectedOrganizationId, userId]);
+
+  const removeOrganizationMember = useCallback(async (organizationId: string, memberId: string) => {
+    if (!organizationId || !memberId) throw new Error('Dados inválidos para remover membro.');
+
+    const { error } = await supabase
+      .from('organization_players')
+      .delete()
+      .eq('organization_id', organizationId)
+      .eq('player_id', memberId);
+
+    if (error) throw error;
+
+    if (memberId === userId) {
+      await fetchOrganizations();
+    }
+  }, [fetchOrganizations, userId]);
+
   useEffect(() => {
     fetchOrganizations();
   }, [fetchOrganizations]);
@@ -243,6 +282,9 @@ export const useOrganizations = (userId: string | null) => {
     joinOrganization,
     createOrganization,
     deleteOrganization,
+    getOrganizationMembers,
+    setOrganizationMemberAdmin,
+    removeOrganizationMember,
     refetchOrganizations: fetchOrganizations,
   };
 };

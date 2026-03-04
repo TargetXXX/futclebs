@@ -10,6 +10,7 @@ interface OrganizationManagementModalProps {
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
   onDeleteOrganization: (organizationId: string) => Promise<void>;
+  joinedOrganizationIds: string[];
 }
 
 export const OrganizationManagementModal: React.FC<OrganizationManagementModalProps> = ({
@@ -20,6 +21,7 @@ export const OrganizationManagementModal: React.FC<OrganizationManagementModalPr
   onJoinOrganization,
   onCreateOrganization,
   onDeleteOrganization,
+  joinedOrganizationIds,
 }) => {
   if (!isOpen) return null;
 
@@ -45,6 +47,7 @@ export const OrganizationManagementModal: React.FC<OrganizationManagementModalPr
             onJoinOrganization={onJoinOrganization}
             onCreateOrganization={onCreateOrganization}
             onDeleteOrganization={onDeleteOrganization}
+            joinedOrganizationIds={joinedOrganizationIds}
           />
         </div>
       </div>

@@ -7,6 +7,7 @@ interface OrganizationAccessPanelProps {
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
   onDeleteOrganization: (organizationId: string) => Promise<void>;
+  joinedOrganizationIds: string[];
 }
 
 export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = ({
@@ -15,6 +16,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   onJoinOrganization,
   onCreateOrganization,
   onDeleteOrganization,
+  joinedOrganizationIds,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Organization[]>([]);
@@ -206,6 +208,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
       <div className="relative z-10 space-y-2">
         {searchResults.map((org) => {
           const isJoining = joiningId === org.id;
+          const isJoined = joinedOrganizationIds.includes(org.id);
 
           return (
             <div
@@ -228,16 +231,20 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
                   <button
                     type="button"
                     onClick={() => {
+                      if (isJoined) return;
                       setJoiningId((prev) => (prev === org.id ? null : org.id));
                       setJoinPassword('');
                     }}
+                    disabled={isJoined}
                     className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase whitespace-nowrap transition-all ${
-                      isJoining
+                      isJoined
+                        ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'
+                        : isJoining
                         ? 'bg-slate-800 border-slate-600 text-slate-200'
                         : 'bg-emerald-600 border-emerald-500 text-slate-950 hover:bg-emerald-500'
                     }`}
                   >
-                    {isJoining ? 'Cancelar' : 'Entrar'}
+                    {isJoined ? 'Já participa' : isJoining ? 'Cancelar' : 'Entrar'}
                   </button>
 
                   {isSuperAdmin && (
@@ -253,7 +260,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
                 </div>
               </div>
 
-              {isJoining && (
+              {isJoining && !isJoined && (
                 <div className="mt-3 flex flex-col sm:flex-row gap-2 animate-in fade-in duration-300">
                   <input
                     type="password"

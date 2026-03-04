@@ -53,7 +53,10 @@ const App: React.FC = () => {
     searchOrganizations,
     joinOrganization,
     createOrganization,
-    deleteOrganization
+    deleteOrganization,
+    getOrganizationMembers,
+    setOrganizationMemberAdmin,
+    removeOrganizationMember
   } = useOrganizations(session?.user?.id || null);
 
   // UI State
@@ -518,6 +521,10 @@ const App: React.FC = () => {
         onJoinOrganization={joinOrganization}
         onCreateOrganization={createOrganization}
         onDeleteOrganization={deleteOrganization}
+        organizations={organizations}
+        onGetOrganizationMembers={getOrganizationMembers}
+        onSetOrganizationMemberAdmin={setOrganizationMemberAdmin}
+        onRemoveOrganizationMember={removeOrganizationMember}
       />
     </div>
   );

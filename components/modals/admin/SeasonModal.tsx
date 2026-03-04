@@ -135,18 +135,26 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
   };
 
   const handleEndSeason = async () => {
-    if (!activeSeason) return;
+    if (!activeSeason || !organizationId) return;
     setConfirmEnd(false);
     setActionLoading(true);
     setMessage(null);
     try {
-      // 1. Buscar stats + dados dos jogadores para calcular overall
+      const { data: organizationPlayers, error: organizationPlayersError } = await supabase
+        .from('organization_players')
+        .select('player_id')
+        .eq('organization_id', organizationId);
+      if (organizationPlayersError) throw new Error(organizationPlayersError.message);
+
+      const organizationPlayerIds = (organizationPlayers || []).map((item: any) => item.player_id);
+      if (organizationPlayerIds.length === 0) throw new Error('Não há jogadores vinculados a esta organização.');
+
       const { data: playersData, error: playersError } = await supabase
         .from('players')
-        .select('id, name, is_goalkeeper, positions, player_stats(*)');
+        .select('id, name, is_goalkeeper, positions, player_stats(*)')
+        .in('id', organizationPlayerIds);
       if (playersError) throw new Error(playersError.message);
 
-      // 2. Salvar snapshot de cada jogador que tem stats
       const snapshots = (playersData || [])
         .filter((p: any) => p.player_stats && (Array.isArray(p.player_stats) ? p.player_stats[0] : p.player_stats))
         .map((p: any) => {
@@ -176,11 +184,11 @@ export const SeasonModal: React.FC<SeasonModalProps> = ({ isOpen, onClose, curre
         if (snapError) throw new Error(`Erro ao salvar histórico: ${snapError.message}`);
       }
 
-      // 3. Resetar player_stats de todos
+      // 3. Resetar player_stats apenas dos jogadores da organização
       const { error: resetError } = await supabase
         .from('player_stats')
         .delete()
-        .neq('player_id', '00000000-0000-0000-0000-000000000000');
+        .in('player_id', organizationPlayerIds);
       if (resetError) throw new Error(`Erro ao resetar stats: ${resetError.message}`);
 
       // 4. Marcar temporada como encerrada
