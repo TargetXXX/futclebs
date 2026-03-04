@@ -8,15 +8,16 @@ export interface PlayerDebt {
   nextDueDate: string | null;
 }
 
-export const usePlayerDebt = (playerId: string | null, _organizationId?: string | null) => {
+export const usePlayerDebt = (playerId: string | null, organizationId?: string | null) => {
   const [debt, setDebt] = useState<PlayerDebt | null>(null);
 
   const fetchDebt = useCallback(async () => {
-    if (!playerId) { setDebt(null); return; }
+    if (!playerId || !organizationId) { setDebt(null); return; }
 
     const { data, error } = await supabase
       .from('financial_transactions')
       .select('id, amount, due_date, created_at')
+      .eq('organization_id', organizationId)
       .eq('player_id', playerId)
       .eq('paid', false);
 
@@ -48,7 +49,7 @@ export const usePlayerDebt = (playerId: string | null, _organizationId?: string 
       isOverdue,
       nextDueDate,
     });
-  }, [playerId]);
+  }, [organizationId, playerId]);
 
   useEffect(() => {
     fetchDebt();

@@ -42,6 +42,7 @@ interface PlayerSummary {
 interface FinancialModalProps {
   isOpen: boolean;
   onClose: () => void;
+  organizationId: string | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -69,7 +70,7 @@ const DAY_ORDER = ['monday','tuesday','wednesday','thursday','friday','saturday'
 
 const AVAILABLE_DAYS: DayOfWeek[] = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
 
-export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose }) => {
+export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose, organizationId }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'players' | 'transactions' | 'config'>('overview');
   const [players, setPlayers] = useState<Player[]>([]);
   const [summary, setSummary] = useState<PlayerSummary[]>([]);
@@ -101,17 +102,19 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
   });
 
   const loadAll = useCallback(async () => {
+    if (!organizationId) return;
     setLoading(true);
     try {
       const currentMonth = new Date().toISOString().slice(0, 7); // '2026-03'
 
       const [{ data: pls }, { data: txs }, { data: smry }, { data: cfg }, { data: monthTxs }] = await Promise.all([
         supabase.from('players').select('*').order('name'),
-        supabase.from('financial_transactions').select('*, players(name)').order('created_at', { ascending: false }).limit(50),
-        supabase.from('financial_summary').select('*').order('name'),
-        supabase.from('financial_config').select('*'),
+        supabase.from('financial_transactions').select('*, players(name)').eq('organization_id', organizationId).order('created_at', { ascending: false }).limit(50),
+        supabase.from('financial_summary').select('*').eq('organization_id', organizationId).order('name'),
+        supabase.from('financial_config').select('*').eq('organization_id', organizationId),
         supabase.from('financial_transactions')
           .select('amount, paid, player_id')
+          .eq('organization_id', organizationId)
           .eq('reference_month', currentMonth)
           .eq('type', 'monthly_fee'),
       ]);
@@ -143,14 +146,15 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
-    if (isOpen) { loadAll(); setMessage(null); setSelectedPlayer(null); setShowAddForm(false); }
-  }, [isOpen, loadAll]);
+    if (isOpen && organizationId) { loadAll(); setMessage(null); setSelectedPlayer(null); setShowAddForm(false); }
+  }, [isOpen, loadAll, organizationId]);
 
   const loadPlayerTransactions = async (playerId: string) => {
-    const { data } = await supabase.from('financial_transactions').select('*').eq('player_id', playerId).order('created_at', { ascending: false });
+    if (!organizationId) return;
+    const { data } = await supabase.from('financial_transactions').select('*').eq('organization_id', organizationId).eq('player_id', playerId).order('created_at', { ascending: false });
     setPlayerTransactions(data || []);
   };
 
@@ -175,6 +179,7 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
         : null;
 
       const { error } = await supabase.from('financial_transactions').insert({
+        organization_id: organizationId,
         player_id:       newTx.player_id,
         type:            newTx.type,
         amount:          newTx.type === 'discount' ? -Math.abs(amount) : Math.abs(amount),
@@ -196,14 +201,16 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
   };
 
   const handleTogglePaid = async (tx: FinancialTransaction) => {
-    await supabase.from('financial_transactions').update({ paid: !tx.paid, paid_at: !tx.paid ? new Date().toISOString() : null }).eq('id', tx.id);
+    if (!organizationId) return;
+    await supabase.from('financial_transactions').update({ paid: !tx.paid, paid_at: !tx.paid ? new Date().toISOString() : null }).eq('organization_id', organizationId).eq('id', tx.id);
     await loadAll();
     if (selectedPlayer) await loadPlayerTransactions(selectedPlayer.id);
   };
 
   const handleDeleteTx = async (id: string) => {
+    if (!organizationId) return;
     if (!confirm('Remover este lançamento?')) return;
-    await supabase.from('financial_transactions').delete().eq('id', id);
+    await supabase.from('financial_transactions').delete().eq('organization_id', organizationId).eq('id', id);
     await loadAll();
     if (selectedPlayer) await loadPlayerTransactions(selectedPlayer.id);
   };
@@ -283,7 +290,7 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
           due_day:            Number(cfg.due_day) || 10,
           is_active:          cfg.is_active,
           updated_at:         new Date().toISOString(),
-        }).eq('id', cfg.id);
+        }).eq('organization_id', organizationId).eq('id', cfg.id);
         if (error) throw error;
       }
       setMessage({ type: 'success', text: '✅ Valores salvos com sucesso!' });
@@ -319,6 +326,7 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
       }, 0);
       if (amount <= 0) continue;
       const { error } = await supabase.from('financial_transactions').insert({
+        organization_id: organizationId,
         player_id:       p.id,
         type:            'monthly_fee',
         amount,
@@ -361,6 +369,18 @@ export const FinancialModal: React.FC<FinancialModalProps> = ({ isOpen, onClose 
     }, 0);
 
   if (!isOpen) return null;
+
+  if (!organizationId) {
+    return (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/95 backdrop-blur-xl">
+        <div className="w-full max-w-md bg-slate-950 border border-slate-800 rounded-[2.5rem] p-6">
+          <h2 className="text-xl font-black text-white uppercase tracking-tight mb-3">Financeiro indisponível</h2>
+          <p className="text-sm text-slate-400">Selecione uma organização para abrir o financeiro.</p>
+          <button onClick={onClose} className="mt-6 w-full py-3 bg-emerald-600 text-slate-950 font-black text-xs uppercase rounded-xl">Fechar</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 sm:p-4 bg-black/95 backdrop-blur-xl animate-in fade-in duration-300">

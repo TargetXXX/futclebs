@@ -18,7 +18,7 @@ import { AvatarModal } from './modals/player/AvatarModal.component.tsx';
 import { SeasonModal } from './modals/admin/SeasonModal.tsx';
 import { WhatsAppConfigModal } from './modals/admin/WhatsAppConfigModal.tsx';
 import { FinancialModal } from './modals/admin/FinancialModal.tsx';
-import { Organization } from '../hooks/useOrganizations.hook';
+import { Organization, OrganizationMember } from '../hooks/useOrganizations.hook';
 import { OrganizationManagementModal } from './modals/admin/OrganizationManagementModal';
 
 interface AllModalsProps {
@@ -39,6 +39,10 @@ interface AllModalsProps {
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
   onDeleteOrganization: (organizationId: string) => Promise<void>;
+  organizations: Organization[];
+  onGetOrganizationMembers: (organizationId: string) => Promise<OrganizationMember[]>;
+  onSetOrganizationMemberAdmin: (organizationId: string, memberId: string, isAdmin: boolean) => Promise<void>;
+  onRemoveOrganizationMember: (organizationId: string, memberId: string) => Promise<void>;
 }
 
 export const AllModals: React.FC<AllModalsProps> = ({
@@ -58,7 +62,11 @@ export const AllModals: React.FC<AllModalsProps> = ({
   onSearchOrganizations,
   onJoinOrganization,
   onCreateOrganization,
-  onDeleteOrganization
+  onDeleteOrganization,
+  organizations,
+  onGetOrganizationMembers,
+  onSetOrganizationMemberAdmin,
+  onRemoveOrganizationMember
 }) => {
   return (
     <>
@@ -71,6 +79,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onJoinOrganization={onJoinOrganization}
         onCreateOrganization={onCreateOrganization}
         onDeleteOrganization={onDeleteOrganization}
+        joinedOrganizationIds={organizations.map((org) => org.id)}
       />
 
       {/* Avatar Modal */}
@@ -185,6 +194,11 @@ export const AllModals: React.FC<AllModalsProps> = ({
         isOpen={modals.isAdminUserManagementOpen}
         onClose={() => modals.closeModal('isAdminUserManagementOpen')}
         currentUserId={userProfile.id}
+        organizationId={selectedOrganizationId}
+        isOrganizationAdmin={isOrganizationAdmin}
+        onGetOrganizationMembers={onGetOrganizationMembers}
+        onSetOrganizationMemberAdmin={onSetOrganizationMemberAdmin}
+        onRemoveOrganizationMember={onRemoveOrganizationMember}
       />
 
       {/* Delete Confirmation Modal */}
@@ -260,6 +274,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
       <FinancialModal
         isOpen={modals.isFinancialModalOpen}
         onClose={() => modals.closeModal('isFinancialModalOpen')}
+        organizationId={selectedOrganizationId}
       />
     </>
   );
