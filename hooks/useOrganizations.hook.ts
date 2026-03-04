@@ -97,7 +97,7 @@ export const useOrganizations = (userId: string | null) => {
     }
   }, [storageKey]);
 
-  const searchOrganizations = useCallback(async (query: string) => {
+  const searchOrganizations = useCallback(async (query: string, options?: { includeJoined?: boolean }) => {
     const term = query.trim();
     if (!term) return [] as Organization[];
 
@@ -111,7 +111,13 @@ export const useOrganizations = (userId: string | null) => {
 
     if (error) throw error;
 
-    return ((data as Organization[] | null) ?? []).filter((org) =>
+    const allOrganizations = (data as Organization[] | null) ?? [];
+
+    if (options?.includeJoined) {
+      return allOrganizations;
+    }
+
+    return allOrganizations.filter((org) =>
       !organizations.some((membershipOrg) => membershipOrg.id === org.id)
     );
   }, [organizations]);
@@ -199,6 +205,30 @@ export const useOrganizations = (userId: string | null) => {
     selectOrganization(organizationId);
   }, [fetchOrganizations, selectOrganization, userId]);
 
+
+  const deleteOrganization = useCallback(async (organizationId: string) => {
+    if (!userId) throw new Error('Usuário não autenticado.');
+
+    const cleanId = organizationId.trim();
+    if (!cleanId) throw new Error('Organização inválida.');
+
+    const { error } = await supabase
+      .from('organization')
+      .delete()
+      .eq('id', cleanId);
+
+    if (error) throw error;
+
+    if (selectedOrganizationId === cleanId) {
+      setSelectedOrganizationId(null);
+      if (storageKey) {
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    await fetchOrganizations();
+  }, [fetchOrganizations, selectedOrganizationId, storageKey, userId]);
+
   useEffect(() => {
     fetchOrganizations();
   }, [fetchOrganizations]);
@@ -212,6 +242,7 @@ export const useOrganizations = (userId: string | null) => {
     searchOrganizations,
     joinOrganization,
     createOrganization,
+    deleteOrganization,
     refetchOrganizations: fetchOrganizations,
   };
 };

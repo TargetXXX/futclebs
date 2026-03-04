@@ -52,7 +52,8 @@ const App: React.FC = () => {
     selectOrganization,
     searchOrganizations,
     joinOrganization,
-    createOrganization
+    createOrganization,
+    deleteOrganization
   } = useOrganizations(session?.user?.id || null);
 
   // UI State
@@ -269,22 +270,45 @@ const App: React.FC = () => {
           onLogout={handleLogout}
         />
 
-        <OrganizationSelector
-          organizations={organizations}
-          selectedOrganizationId={activeOrganizationId || selectedOrganizationId}
-          onSelectOrganization={handleSelectOrganization}
-          isLoading={loadingOrganizationData}
-        />
+        <section className="bg-slate-900/40 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Área de organizações</p>
+                <h3 className="text-white text-sm font-black">{!hasOrganizations ? 'Nenhuma organização vinculada' : isOrganizationDashboard ? 'Dashboard da organização ativa' : 'Seleção de dashboards'}</h3>
+              </div>
+              <button
+                onClick={() => modals.openModal('isOrganizationManagementOpen')}
+                className="px-3 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all text-[10px] font-black uppercase tracking-wider"
+              >
+                Gerenciar organizações
+              </button>
+            </div>
 
-        <div className="flex justify-end">
-          <button
-            onClick={() => modals.openModal('isOrganizationManagementOpen')}
-            className="px-3 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 transition-all text-[10px] font-black uppercase tracking-wider"
-          >
-            Gerenciar organizações
-          </button>
-        </div>
-
+            {!hasOrganizations ? (
+              <p className="text-slate-400 text-xs">Entre ou crie uma organização em "Gerenciar organizações" para começar.</p>
+            ) : !isOrganizationDashboard ? (
+              <OrganizationSelector
+                organizations={organizations}
+                selectedOrganizationId={activeOrganizationId || selectedOrganizationId}
+                onSelectOrganization={handleSelectOrganization}
+                isLoading={loadingOrganizationData}
+              />
+            ) : (
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-emerald-300 text-[10px] font-black uppercase tracking-wide">Dashboard ativa</p>
+                  <p className="text-white text-sm font-black mt-1">{organizationFromRoute?.name}</p>
+                  <p className="text-emerald-100/80 text-xs mt-1">Use o botão abaixo para voltar ao dashboard inicial e escolher outra organização.</p>
+                </div>
+                <button
+                  onClick={handleBackToInitialDashboard}
+                  className="px-3 py-2 rounded-xl border border-emerald-400/40 text-emerald-200 text-[11px] font-black uppercase hover:bg-emerald-400/10"
+                >
+                  Voltar ao dashboard inicial
+                </button>
+              </div>
+            )}
+          </section>
 
         {!hasOrganizations ? (
           <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 text-center">
@@ -493,6 +517,7 @@ const App: React.FC = () => {
         onSearchOrganizations={searchOrganizations}
         onJoinOrganization={joinOrganization}
         onCreateOrganization={createOrganization}
+        onDeleteOrganization={deleteOrganization}
       />
     </div>
   );

@@ -35,9 +35,10 @@ interface AllModalsProps {
   onDeleteMatch: () => void;
   onAvatarSave: () => void;
   onAvatarRemove: () => void;
-  onSearchOrganizations: (query: string) => Promise<Organization[]>;
+  onSearchOrganizations: (query: string, options?: { includeJoined?: boolean }) => Promise<Organization[]>;
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
+  onDeleteOrganization: (organizationId: string) => Promise<void>;
 }
 
 export const AllModals: React.FC<AllModalsProps> = ({
@@ -56,7 +57,8 @@ export const AllModals: React.FC<AllModalsProps> = ({
   onAvatarRemove,
   onSearchOrganizations,
   onJoinOrganization,
-  onCreateOrganization
+  onCreateOrganization,
+  onDeleteOrganization
 }) => {
   return (
     <>
@@ -68,6 +70,7 @@ export const AllModals: React.FC<AllModalsProps> = ({
         onSearchOrganizations={onSearchOrganizations}
         onJoinOrganization={onJoinOrganization}
         onCreateOrganization={onCreateOrganization}
+        onDeleteOrganization={onDeleteOrganization}
       />
 
       {/* Avatar Modal */}

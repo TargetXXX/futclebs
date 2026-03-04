@@ -1,11 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Organization } from '../../hooks/useOrganizations.hook';
 
 interface OrganizationAccessPanelProps {
   isSuperAdmin: boolean;
-  onSearchOrganizations: (query: string) => Promise<Organization[]>;
+  onSearchOrganizations: (query: string, options?: { includeJoined?: boolean }) => Promise<Organization[]>;
   onJoinOrganization: (organizationId: string, password: string) => Promise<void>;
   onCreateOrganization: (payload: { name: string; description?: string; password: string }) => Promise<void>;
+  onDeleteOrganization: (organizationId: string) => Promise<void>;
 }
 
 export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = ({
@@ -13,6 +14,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   onSearchOrganizations,
   onJoinOrganization,
   onCreateOrganization,
+  onDeleteOrganization,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Organization[]>([]);
@@ -21,6 +23,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   const [joiningId, setJoiningId] = useState<string | null>(null);
   const [joinPassword, setJoinPassword] = useState('');
   const [joinLoading, setJoinLoading] = useState(false);
+  const [deletingOrganizationId, setDeletingOrganizationId] = useState<string | null>(null);
 
   const [newOrgName, setNewOrgName] = useState('');
   const [newOrgDescription, setNewOrgDescription] = useState('');
@@ -28,11 +31,13 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
   const [createLoading, setCreateLoading] = useState(false);
 
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const searchRequestIdRef = useRef(0);
 
   const hasSearch = useMemo(() => searchTerm.trim().length > 0, [searchTerm]);
 
-  const handleSearch = async (event?: React.FormEvent) => {
+  const handleSearch = useCallback(async (event?: React.FormEvent) => {
     event?.preventDefault();
+    const currentRequestId = ++searchRequestIdRef.current;
 
     if (!hasSearch) {
       setSearchResults([]);
@@ -44,18 +49,41 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
     setMessage(null);
 
     try {
-      const data = await onSearchOrganizations(searchTerm);
+      const data = await onSearchOrganizations(searchTerm, { includeJoined: isSuperAdmin });
+      if (currentRequestId !== searchRequestIdRef.current) return;
+
       setSearchResults(data);
 
       if (data.length === 0) {
         setMessage({ type: 'error', text: 'Nenhuma organização encontrada com esse nome.' });
       }
     } catch (error: any) {
+      if (currentRequestId !== searchRequestIdRef.current) return;
       setMessage({ type: 'error', text: error.message || 'Erro ao pesquisar organizações.' });
     } finally {
-      setSearching(false);
+      if (currentRequestId === searchRequestIdRef.current) {
+        setSearching(false);
+      }
     }
-  };
+  }, [hasSearch, isSuperAdmin, onSearchOrganizations, searchTerm]);
+
+  useEffect(() => {
+    if (!hasSearch) {
+      searchRequestIdRef.current += 1;
+      setSearchResults([]);
+      setSearching(false);
+      setMessage(null);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      handleSearch();
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [handleSearch, hasSearch, searchTerm]);
 
   const handleJoin = async () => {
     if (!joiningId) return;
@@ -73,6 +101,30 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
       setMessage({ type: 'error', text: error.message || 'Erro ao entrar na organização.' });
     } finally {
       setJoinLoading(false);
+    }
+  };
+
+  const handleDeleteOrganization = async (organization: Organization) => {
+    if (!isSuperAdmin) return;
+
+    const confirmed = window.confirm(`Tem certeza que deseja excluir a organização "${organization.name}"? Esta ação não pode ser desfeita.`);
+    if (!confirmed) return;
+
+    setDeletingOrganizationId(organization.id);
+    setMessage(null);
+
+    try {
+      await onDeleteOrganization(organization.id);
+      setSearchResults((prev) => prev.filter((org) => org.id !== organization.id));
+      setMessage({ type: 'success', text: `Organização "${organization.name}" excluída com sucesso.` });
+      if (joiningId === organization.id) {
+        setJoiningId(null);
+        setJoinPassword('');
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Erro ao excluir organização.' });
+    } finally {
+      setDeletingOrganizationId(null);
     }
   };
 
@@ -147,7 +199,7 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
           disabled={searching || !hasSearch}
           className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-slate-950 text-[10px] font-black uppercase tracking-wide"
         >
-          {searching ? 'Buscando...' : 'Pesquisar'}
+          {searching ? 'Buscando...' : 'Buscar agora'}
         </button>
       </form>
 
@@ -172,20 +224,33 @@ export const OrganizationAccessPanel: React.FC<OrganizationAccessPanelProps> = (
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setJoiningId((prev) => (prev === org.id ? null : org.id));
-                    setJoinPassword('');
-                  }}
-                  className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase whitespace-nowrap transition-all ${
-                    isJoining
-                      ? 'bg-slate-800 border-slate-600 text-slate-200'
-                      : 'bg-emerald-600 border-emerald-500 text-slate-950 hover:bg-emerald-500'
-                  }`}
-                >
-                  {isJoining ? 'Cancelar' : 'Entrar'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setJoiningId((prev) => (prev === org.id ? null : org.id));
+                      setJoinPassword('');
+                    }}
+                    className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase whitespace-nowrap transition-all ${
+                      isJoining
+                        ? 'bg-slate-800 border-slate-600 text-slate-200'
+                        : 'bg-emerald-600 border-emerald-500 text-slate-950 hover:bg-emerald-500'
+                    }`}
+                  >
+                    {isJoining ? 'Cancelar' : 'Entrar'}
+                  </button>
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteOrganization(org)}
+                      disabled={deletingOrganizationId === org.id}
+                      className="px-3 py-2 rounded-xl border border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 disabled:opacity-60 disabled:cursor-not-allowed text-[10px] font-black uppercase whitespace-nowrap transition-all"
+                    >
+                      {deletingOrganizationId === org.id ? 'Excluindo...' : 'Excluir'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {isJoining && (
