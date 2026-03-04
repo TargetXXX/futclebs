@@ -28,6 +28,15 @@ import { OrganizationSelector } from './components/dashboard/OrganizationSelecto
 import { OrganizationAccessPanel } from './components/dashboard/OrganizationAccessPanel.component';
 import { AllModals } from './components/AllModals.component';
 
+const ORGANIZATION_ROUTE_PREFIX = '/organization/';
+
+const getOrganizationIdFromPath = (pathname: string): string | null => {
+  if (!pathname.startsWith(ORGANIZATION_ROUTE_PREFIX)) return null;
+
+  const organizationId = pathname.slice(ORGANIZATION_ROUTE_PREFIX.length).split('/')[0]?.trim();
+  return organizationId || null;
+};
+
 const App: React.FC = () => {
   // Core hooks
   const { session, initializing, signOut } = useAuth();
@@ -47,9 +56,6 @@ const App: React.FC = () => {
     createOrganization
   } = useOrganizations(session?.user?.id || null);
 
-  // Débito do jogador logado
-  const { debt } = usePlayerDebt(userProfile?.id ?? null, selectedOrganizationId);
-
   // UI State
   const ui = useUIState();
   const form = useFormState();
@@ -57,12 +63,25 @@ const App: React.FC = () => {
   // Loading profile state
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [loadingOrganizationData, setLoadingOrganizationData] = useState(false);
+  const [routeOrganizationId, setRouteOrganizationId] = useState<string | null>(() =>
+    getOrganizationIdFromPath(window.location.pathname)
+  );
 
   // Computed
   const isSuperAdmin = !!userProfile && SUPER_ADMIN_IDS.includes(userProfile.id);
   const isOrganizationAdmin = isCurrentOrganizationAdmin || isSuperAdmin;
   const { getFilteredMatches, getCategoryCount } = useMatchFilters(matches);
   const filteredMatches = getFilteredMatches(ui.activeCategory);
+
+  const hasOrganizations = organizations.length > 0;
+  const organizationFromRoute = organizations.find((org) => org.id === routeOrganizationId) || null;
+  const activeOrganizationId = organizationFromRoute?.id || null;
+  const isOrganizationDashboard = !!activeOrganizationId;
+  const hasInvalidOrganizationRoute = !!routeOrganizationId && !organizationFromRoute;
+
+  // Débito do jogador logado
+  const { debt } = usePlayerDebt(userProfile?.id ?? null, activeOrganizationId);
+
 
   // Load user data
   const loadUserData = useCallback(async (userId: string) => {
@@ -76,18 +95,57 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
+    const handlePopState = () => {
+      setRouteOrganizationId(getOrganizationIdFromPath(window.location.pathname));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const navigateToOrganization = useCallback((organizationId: string | null) => {
+    const nextPath = organizationId ? `${ORGANIZATION_ROUTE_PREFIX}${organizationId}` : '/';
+
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
+
+    setRouteOrganizationId(organizationId);
+  }, []);
+
+  const handleSelectOrganization = useCallback((organizationId: string) => {
+    selectOrganization(organizationId);
+    navigateToOrganization(organizationId);
+  }, [navigateToOrganization, selectOrganization]);
+
+  const handleBackToInitialDashboard = useCallback(() => {
+    navigateToOrganization(null);
+  }, [navigateToOrganization]);
+
+  useEffect(() => {
+    if (!routeOrganizationId || !hasOrganizations) return;
+
+    if (selectedOrganizationId !== routeOrganizationId) {
+      selectOrganization(routeOrganizationId);
+    }
+  }, [hasOrganizations, routeOrganizationId, selectOrganization, selectedOrganizationId]);
+
+  useEffect(() => {
     const loadOrganizationDashboard = async () => {
-      if (!session?.user?.id || !selectedOrganizationId) return;
+      if (!session?.user?.id || !activeOrganizationId) return;
       setLoadingOrganizationData(true);
       try {
-        await fetchMatches(session.user.id, selectedOrganizationId);
+        await fetchMatches(session.user.id, activeOrganizationId);
       } finally {
         setLoadingOrganizationData(false);
       }
     };
 
     loadOrganizationDashboard();
-  }, [session?.user?.id, selectedOrganizationId, fetchMatches]);
+  }, [activeOrganizationId, fetchMatches, session?.user?.id]);
 
   // Auth handlers
   const authHandlers = useAuthHandlers(loadUserData, ui.setStep, ui.setError, ui.setLoading);
@@ -96,7 +154,7 @@ const App: React.FC = () => {
   const dashboardHandlers = useDashboardHandlers(
     userProfile,
     isSuperAdmin,
-    selectedOrganizationId,
+    activeOrganizationId,
     deleteMatch,
     fetchMatches,
     fetchUserProfile,
@@ -201,7 +259,7 @@ const App: React.FC = () => {
           userProfile={userProfile}
           isSuperAdmin={isSuperAdmin}
           isOrganizationAdmin={isOrganizationAdmin}
-          organizationName={organizations.find((org) => org.id === selectedOrganizationId)?.name || null}
+          organizationName={organizationFromRoute?.name || null}
           onOpenUserManagement={() => modals.openModal('isAdminUserManagementOpen')}
           onOpenCreateMatch={() => modals.openModal('isCreateMatchOpen')}
           onOpenSeasonModal={() => modals.openModal('isSeasonModalOpen')}
@@ -212,8 +270,8 @@ const App: React.FC = () => {
 
         <OrganizationSelector
           organizations={organizations}
-          selectedOrganizationId={selectedOrganizationId}
-          onSelectOrganization={selectOrganization}
+          selectedOrganizationId={activeOrganizationId || selectedOrganizationId}
+          onSelectOrganization={handleSelectOrganization}
           isLoading={loadingOrganizationData}
         />
 
@@ -225,7 +283,75 @@ const App: React.FC = () => {
           onCreateOrganization={createOrganization}
         />
 
-        {selectedOrganizationId ? (
+        {!hasOrganizations ? (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 text-center">
+            <p className="text-sm font-black text-white">Você ainda não está vinculado a nenhuma organização.</p>
+            <p className="text-slate-400 text-xs mt-2">Pesquise por nome e entre com a senha da organização para começar.</p>
+            <button
+              onClick={handleLogout}
+              className="mt-5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-black uppercase text-slate-200"
+            >
+              Sair
+            </button>
+          </div>
+        ) : !isOrganizationDashboard ? (
+          <section className="space-y-4">
+            {hasInvalidOrganizationRoute && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-amber-300 text-xs font-black uppercase tracking-wide">Organização não encontrada</p>
+                  <p className="text-amber-100/90 text-xs mt-1">A URL acessada não pertence às suas organizações. Escolha uma organização abaixo para continuar.</p>
+                </div>
+                <button
+                  onClick={handleBackToInitialDashboard}
+                  className="px-3 py-2 rounded-xl border border-amber-400/40 text-amber-200 text-[11px] font-black uppercase hover:bg-amber-400/10"
+                >
+                  Voltar para início
+                </button>
+              </div>
+            )}
+
+            <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-5 sm:p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Dashboard inicial</p>
+                  <h3 className="text-white text-sm sm:text-base font-black">Selecione a organização para visualizar os dados</h3>
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border border-emerald-500/30 text-emerald-300 bg-emerald-500/10">
+                  {organizations.length} organização{organizations.length > 1 ? 'ões' : ''}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {organizations.map((org) => {
+                  const isDefault = selectedOrganizationId === org.id;
+                  return (
+                    <article
+                      key={org.id}
+                      className="rounded-2xl border border-slate-700 bg-slate-900/70 p-4 flex flex-col gap-3"
+                    >
+                      <div>
+                        <p className="text-white text-sm font-black leading-tight">{org.name}</p>
+                        <p className="text-slate-400 text-xs mt-1 line-clamp-2">{org.description?.trim() || 'Sem descrição cadastrada para esta organização.'}</p>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          onClick={() => handleSelectOrganization(org.id)}
+                          className="px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-[11px] font-black uppercase hover:bg-emerald-500/30"
+                        >
+                          Abrir dashboard
+                        </button>
+                        {isDefault && (
+                          <span className="text-[10px] text-slate-300 font-black uppercase tracking-wide">Padrão</span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        ) : (
           <>
         {/* Stats Card */}
         <StatsCard
@@ -274,7 +400,7 @@ const App: React.FC = () => {
         <div className="space-y-4">
           {ui.activeCategory === 'ranking' ? (
             <RankingTab
-              selectedOrganizationId={selectedOrganizationId}
+              selectedOrganizationId={activeOrganizationId}
               userPositions={userProfile.positions}
               isGoalkeeper={userProfile.is_goalkeeper}
               onPlayerClick={(p) => {
@@ -343,17 +469,6 @@ const App: React.FC = () => {
           )}
         </div>
           </>
-        ) : (
-          <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 text-center">
-            <p className="text-sm font-black text-white">Você ainda não está vinculado a nenhuma organização.</p>
-            <p className="text-slate-400 text-xs mt-2">Pesquise por nome e entre com a senha da organização para começar.</p>
-            <button
-              onClick={handleLogout}
-              className="mt-5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-black uppercase text-slate-200"
-            >
-              Sair
-            </button>
-          </div>
         )}
       </div>
 
@@ -365,7 +480,7 @@ const App: React.FC = () => {
         avatar={avatar}
         isSuperAdmin={isSuperAdmin}
         isOrganizationAdmin={isOrganizationAdmin}
-        selectedOrganizationId={selectedOrganizationId}
+        selectedOrganizationId={activeOrganizationId}
         loading={ui.loading}
         onFetchMatches={fetchMatches}
         onFetchUserProfile={fetchUserProfile}
@@ -378,5 +493,4 @@ const App: React.FC = () => {
 };
 
 export default App;
-
 
