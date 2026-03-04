@@ -85,8 +85,6 @@ export const useOrganizations = (userId: string | null) => {
     } catch (error) {
       console.error('Erro ao carregar organizações:', error);
       setOrganizations([]);
-      setSelectedOrganizationId(null);
-      setAdminByOrganization({});
     } finally {
       setLoadingOrganizations(false);
     }
@@ -157,6 +155,7 @@ export const useOrganizations = (userId: string | null) => {
     selectOrganization(organization.id);
   }, [fetchOrganizations, selectOrganization, userId]);
 
+  // FUNÇÃO CORRIGIDA ABAIXO
   const createOrganization = useCallback(async (payload: { name: string; description?: string; password: string }) => {
     if (!userId) throw new Error('Usuário não autenticado.');
 
@@ -167,6 +166,7 @@ export const useOrganizations = (userId: string | null) => {
     if (!name) throw new Error('Informe o nome da organização.');
     if (password.length < 4) throw new Error('A senha da organização deve ter ao menos 4 caracteres.');
 
+    // 1. Inserir na tabela organization incluindo o owner_id (CORREÇÃO DO ERRO)
     const { data: insertedOrganization, error: createError } = await supabase
       .from('organization')
       .insert({
@@ -174,25 +174,24 @@ export const useOrganizations = (userId: string | null) => {
         description,
         password,
         active: true,
+        owner_id: userId, // Campo obrigatório pela constraint foreign key
       })
       .select('id')
       .single();
 
     if (createError) throw createError;
+    if (!insertedOrganization?.id) throw new Error('Falha ao obter ID da nova organização.');
 
-    const organizationId = insertedOrganization?.id;
-    if (!organizationId) throw new Error('Não foi possível identificar a organização criada.');
+    const organizationId = insertedOrganization.id;
 
+    // 2. Vincular o criador como admin na tabela organization_players
     const { error: membershipError } = await supabase
       .from('organization_players')
-      .upsert(
-        {
-          organization_id: organizationId,
-          player_id: userId,
-          is_admin: true,
-        },
-        { onConflict: 'organization_id,player_id' }
-      );
+      .insert({
+        organization_id: organizationId,
+        player_id: userId,
+        is_admin: true,
+      });
 
     if (membershipError) throw membershipError;
 
