@@ -25,6 +25,7 @@ import { TabsNavigation } from './components/dashboard/TabsNavigation.component'
 import { MatchCard } from './components/dashboard/MatchCard.component';
 import { RankingTab } from './components/dashboard/RankingTab';
 import { OrganizationSelector } from './components/dashboard/OrganizationSelector.component';
+import { OrganizationAccessPanel } from './components/dashboard/OrganizationAccessPanel.component';
 import { AllModals } from './components/AllModals.component';
 
 const App: React.FC = () => {
@@ -40,7 +41,10 @@ const App: React.FC = () => {
     selectedOrganizationId,
     loadingOrganizations,
     isCurrentOrganizationAdmin,
-    selectOrganization
+    selectOrganization,
+    searchOrganizations,
+    joinOrganization,
+    createOrganization
   } = useOrganizations(session?.user?.id || null);
 
   // Débito do jogador logado
@@ -188,23 +192,6 @@ const App: React.FC = () => {
     );
   }
 
-  if (session && userProfile && !selectedOrganizationId) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-slate-900/50 border border-slate-800 rounded-3xl p-6 text-center">
-          <p className="text-sm font-black text-white">Você ainda não está vinculado a nenhuma organização.</p>
-          <p className="text-slate-400 text-xs mt-2">Peça para um administrador adicionar seu usuário em uma organização para liberar o dashboard.</p>
-          <button
-            onClick={handleLogout}
-            className="mt-5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-black uppercase text-slate-200"
-          >
-            Sair
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Dashboard principal
   return (
     <div className="min-h-screen bg-slate-950 pb-20 p-3 sm:p-8">
@@ -230,6 +217,16 @@ const App: React.FC = () => {
           isLoading={loadingOrganizationData}
         />
 
+
+        <OrganizationAccessPanel
+          isSuperAdmin={isSuperAdmin}
+          onSearchOrganizations={searchOrganizations}
+          onJoinOrganization={joinOrganization}
+          onCreateOrganization={createOrganization}
+        />
+
+        {selectedOrganizationId ? (
+          <>
         {/* Stats Card */}
         <StatsCard
           userProfile={userProfile}
@@ -345,6 +342,19 @@ const App: React.FC = () => {
             ))
           )}
         </div>
+          </>
+        ) : (
+          <div className="bg-slate-900/40 border border-slate-800 rounded-3xl p-6 text-center">
+            <p className="text-sm font-black text-white">Você ainda não está vinculado a nenhuma organização.</p>
+            <p className="text-slate-400 text-xs mt-2">Pesquise por nome e entre com a senha da organização para começar.</p>
+            <button
+              onClick={handleLogout}
+              className="mt-5 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-black uppercase text-slate-200"
+            >
+              Sair
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Todos os Modais */}
