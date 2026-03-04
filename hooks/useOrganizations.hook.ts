@@ -13,6 +13,10 @@ interface MembershipRow {
   is_admin: boolean;
 }
 
+interface OrganizationWithPassword extends Organization {
+  password: string;
+}
+
 export const useOrganizations = (userId: string | null) => {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<string | null>(null);
@@ -95,6 +99,107 @@ export const useOrganizations = (userId: string | null) => {
     }
   }, [storageKey]);
 
+  const searchOrganizations = useCallback(async (query: string) => {
+    const term = query.trim();
+    if (!term) return [] as Organization[];
+
+    const { data, error } = await supabase
+      .from('organization')
+      .select('id, name, description, active')
+      .eq('active', true)
+      .ilike('name', `%${term}%`)
+      .order('name', { ascending: true })
+      .limit(12);
+
+    if (error) throw error;
+
+    return ((data as Organization[] | null) ?? []).filter((org) =>
+      !organizations.some((membershipOrg) => membershipOrg.id === org.id)
+    );
+  }, [organizations]);
+
+  const joinOrganization = useCallback(async (organizationId: string, password: string) => {
+    if (!userId) throw new Error('Usuário não autenticado.');
+
+    const cleanPassword = password.trim();
+    if (!cleanPassword) throw new Error('Informe a senha da organização.');
+
+    const { data: organizationData, error: orgError } = await supabase
+      .from('organization')
+      .select('id, name, description, active, password')
+      .eq('id', organizationId)
+      .eq('active', true)
+      .maybeSingle();
+
+    if (orgError) throw orgError;
+
+    const organization = organizationData as OrganizationWithPassword | null;
+    if (!organization) throw new Error('Organização não encontrada ou inativa.');
+
+    if (organization.password !== cleanPassword) {
+      throw new Error('Senha da organização inválida.');
+    }
+
+    const { error: joinError } = await supabase
+      .from('organization_players')
+      .upsert(
+        {
+          organization_id: organization.id,
+          player_id: userId,
+          is_admin: false,
+        },
+        { onConflict: 'organization_id,player_id' }
+      );
+
+    if (joinError) throw joinError;
+
+    await fetchOrganizations();
+    selectOrganization(organization.id);
+  }, [fetchOrganizations, selectOrganization, userId]);
+
+  const createOrganization = useCallback(async (payload: { name: string; description?: string; password: string }) => {
+    if (!userId) throw new Error('Usuário não autenticado.');
+
+    const name = payload.name.trim();
+    const password = payload.password.trim();
+    const description = payload.description?.trim() || null;
+
+    if (!name) throw new Error('Informe o nome da organização.');
+    if (password.length < 4) throw new Error('A senha da organização deve ter ao menos 4 caracteres.');
+
+    const { data: insertedOrganization, error: createError } = await supabase
+      .from('organization')
+      .insert({
+        name,
+        description,
+        password,
+        active: true,
+      })
+      .select('id')
+      .single();
+
+    if (createError) throw createError;
+
+    const organizationId = insertedOrganization?.id;
+    if (!organizationId) throw new Error('Não foi possível identificar a organização criada.');
+
+    const { error: membershipError } = await supabase
+      .from('organization_players')
+      .upsert(
+        {
+          organization_id: organizationId,
+          player_id: userId,
+          is_admin: true,
+        },
+        { onConflict: 'organization_id,player_id' }
+      );
+
+    if (membershipError) throw membershipError;
+
+    await fetchOrganizations();
+    selectOrganization(organizationId);
+  }, [fetchOrganizations, selectOrganization, userId]);
+
   useEffect(() => {
     fetchOrganizations();
   }, [fetchOrganizations]);
@@ -105,6 +210,9 @@ export const useOrganizations = (userId: string | null) => {
     loadingOrganizations,
     isCurrentOrganizationAdmin: selectedOrganizationId ? !!adminByOrganization[selectedOrganizationId] : false,
     selectOrganization,
+    searchOrganizations,
+    joinOrganization,
+    createOrganization,
     refetchOrganizations: fetchOrganizations,
   };
 };
