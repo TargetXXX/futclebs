@@ -133,19 +133,17 @@ Deno.serve(async (req) => {
     let confirmedIds  = new Set<string>();
     let goalkeepers: any[] = [];
     let confirmed_all: any[] = [];
-    let waiting: any[] = [];
 
     if (match) {
       const { data: regs } = await supabase
         .from('match_players')
-        .select('player_id, status, players(name, is_goalkeeper, subscription_type, match_days)')
+        .select('player_id, is_goalkeeper, team, players(name, is_goalkeeper, subscription_type, match_days)')
         .eq('match_id', match.id)
-        .order('created_at', { ascending: true });
+        .order('id', { ascending: true });
 
-      confirmed_all = (regs || []).filter((r: any) => r.status === 'confirmed');
-      waiting       = (regs || []).filter((r: any) => r.status === 'waiting');
+      confirmed_all = regs || [];
       confirmedIds  = new Set(confirmed_all.map((r: any) => r.player_id));
-      goalkeepers   = confirmed_all.filter((r: any) => r.players?.is_goalkeeper === true);
+      goalkeepers   = confirmed_all.filter((r: any) => (r.players?.is_goalkeeper ?? r.is_goalkeeper) === true);
     }
 
     // 5. Busca todos jogadores mensalistas uma vez (filtra por dia dentro do loop)
@@ -234,7 +232,7 @@ Deno.serve(async (req) => {
         num++;
       }
 
-      const waitingAll = [...diariosEspera, ...waiting];
+      const waitingAll = [...diariosEspera];
       if (waitingAll.length > 0) {
         lines.push(``);
         lines.push(`⏳ *LISTA DE ESPERA:*`);

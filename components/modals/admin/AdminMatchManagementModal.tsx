@@ -95,7 +95,13 @@ export const AdminMatchManagementModal: React.FC<AdminMatchManagementModalProps>
 
     setActionLoading(true);
     try {
-      const inserts = Array.from(selectedToAdd).map(pid => ({ match_id: matchId, player_id: pid }));
+      const inserts = allPlayers
+        .filter(player => selectedToAdd.has(player.id))
+        .map(player => ({
+          match_id: matchId,
+          player_id: player.id,
+          is_goalkeeper: !!player.is_goalkeeper
+        }));
       await supabase.from('match_players').insert(inserts);
       await loadData();
       onRefresh();
@@ -107,7 +113,13 @@ export const AdminMatchManagementModal: React.FC<AdminMatchManagementModalProps>
     if (pendingAdds.length === 0) return;
     setActionLoading(true);
     try {
-      const inserts = pendingAdds.map(pid => ({ match_id: matchId, player_id: pid }));
+      const inserts = allPlayers
+        .filter(player => pendingAdds.includes(player.id))
+        .map(player => ({
+          match_id: matchId,
+          player_id: player.id,
+          is_goalkeeper: !!player.is_goalkeeper
+        }));
       await supabase.from('match_players').insert(inserts);
       await loadData();
       onRefresh();

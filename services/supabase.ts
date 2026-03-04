@@ -49,6 +49,7 @@ export type Player = {
   name: string;
   phone: string;
   is_admin: boolean;
+  is_super_admin?: boolean;
   is_goalkeeper: boolean;
   avatar: string | null;
   positions: String[] | null;
@@ -81,6 +82,7 @@ export type Match = {
   match_date: string;
   status: 'open' | 'in_progress' | 'finished';
   created_by?: string;
+  organization_id?: string;
   created_at: string;
 };
 
@@ -97,8 +99,8 @@ export type MatchRegistration = {
   id: string;
   match_id: string;
   player_id: string;
-  created_at: string;
-  status: 'confirmed' | 'waiting';
+  is_goalkeeper: boolean;
+  team: 'A' | 'B' | null;
 };
 
 export type PlayerVote = {
