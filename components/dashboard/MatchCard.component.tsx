@@ -6,6 +6,7 @@ interface MatchCardProps {
   match: MatchWithExtras;
   userProfile: Player;
   isSuperAdmin: boolean;
+  isOrganizationAdmin: boolean;
   activeAdminMenu: string | null;
   setActiveAdminMenu: (id: string | null) => void;
   onOpenPlayers: () => void;
@@ -23,6 +24,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
   match,
   userProfile,
   isSuperAdmin,
+  isOrganizationAdmin,
   activeAdminMenu,
   setActiveAdminMenu,
   onOpenPlayers,
@@ -109,7 +111,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
           </button>
         </div>
 
-        {userProfile.is_admin && (
+        {isOrganizationAdmin && (
           <div className="w-full">
             {match.status === 'open' && (
               <>

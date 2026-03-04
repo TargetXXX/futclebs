@@ -8,7 +8,7 @@ export interface PlayerDebt {
   nextDueDate: string | null;
 }
 
-export const usePlayerDebt = (playerId: string | null) => {
+export const usePlayerDebt = (playerId: string | null, _organizationId?: string | null) => {
   const [debt, setDebt] = useState<PlayerDebt | null>(null);
 
   const fetchDebt = useCallback(async () => {
